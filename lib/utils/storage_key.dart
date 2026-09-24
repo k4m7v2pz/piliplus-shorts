@@ -249,7 +249,10 @@ abstract final class LocalCacheKey {
       danmakuFilterRules = 'danmakuFilterRules',
       mixinKey = 'mixinKey',
       timeStamp = 'timeStamp',
-      buvid = 'buvid';
+      buvid = 'buvid',
+      svTitleKeywords = 'svTitleKeywords',
+      svNewsKeywords = 'svNewsKeywords',
+      svMusicKeywords = 'svMusicKeywords';
 }
 
 abstract final class VideoBoxKey {

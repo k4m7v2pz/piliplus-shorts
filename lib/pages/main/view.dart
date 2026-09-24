@@ -14,7 +14,6 @@ import 'package:PiliPlus/pages/home/controller.dart';
 import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
-import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/utils/android/android_helper.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/extension/context_ext.dart';
@@ -70,7 +69,7 @@ class _MainAppState extends PopScopeState<MainApp>
         _handleTray();
       }
     }
-    if (PlatformUtils.isMobile || Platform.isLinux || Platform.isWindows) {
+    if (!Platform.isMacOS) {
       PiliScheme.init();
     }
   }
@@ -498,17 +497,15 @@ class _MainAppState extends PopScopeState<MainApp>
     final viewPadding = MediaQuery.viewPaddingOf(context);
     final EdgeInsets padding;
     if (_mainController.useBottomNav) {
-      final bottomNavWidget = _bottomNav;
-      bottomNav = MediaQuery.removePadding(
-        context: context,
-        removeTop: true,
-        child: bottomNavWidget ?? const SizedBox.shrink(),
-      );
-      padding = .only(
-        top: viewPadding.top,
-        left: viewPadding.left,
-        right: viewPadding.right,
-      );
+      bottomNav = _bottomNav;
+      if (bottomNav != null) {
+        bottomNav = MediaQuery.removePadding(
+          context: context,
+          removeTop: true,
+          child: bottomNav,
+        );
+      }
+      padding = _padding.copyWith(bottom: 0);
     } else {
       sideBar = DecoratedBox(
         decoration: BoxDecoration(

@@ -113,6 +113,10 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.black : const Color(0xFFFDFBFF),
+      floatingActionButton: IconButton(
+        icon: const Icon(Icons.filter_list, color: Colors.white54, size: 22),
+        onPressed: () => Get.toNamed('/svFilter'),
+      ),
       body: Padding(
         padding: EdgeInsets.only(bottom: Theme.of(context).platform == TargetPlatform.android || Theme.of(context).platform == TargetPlatform.iOS ? 80 + MediaQuery.viewPaddingOf(context).bottom : 0),
         child: Listener(
@@ -407,6 +411,11 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                               icon: Icons.info_outline,
                               label: '详情页',
                               onTap: _c.openComment,
+                            ),
+                            _SideButton(
+                              icon: Icons.filter_list,
+                              label: '屏蔽',
+                              onTap: () => Get.toNamed('/svFilter'),
                             ),
                           ],
                         ),

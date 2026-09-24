@@ -35,11 +35,6 @@ class MainActivity : AudioServiceActivity() {
         }, 2000)
     }
 
-    override fun onDestroy() {
-        stopService(Intent(this, com.ryanheise.audioservice.AudioService::class.java))
-        super.onDestroy()
-    }
-
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         AndroidHelper.ToDart.onUserLeaveHint?.run()

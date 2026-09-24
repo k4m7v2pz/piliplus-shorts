@@ -1,110 +1,107 @@
-# PiliPlus 短视频版 — Agent 构建指南
+# PiliPlus Shorts — Agent 构建指南
 
-本仓库是 PiliPlus 的私有 fork，添加了竖屏短视频（上下滑）功能。
-基于上游 `bggRGjQaUbCoE/PiliPlus` main 分支。
+本仓库是 [PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) 的 fork，
+新增竖屏短视频上下滑 feed。应用名 **PiliPlus Shorts**。
 
-## 快速编译 macOS
+## 远程仓库
+
+| remote | 地址 | 用途 |
+|--------|------|------|
+| `origin` | `https://github.com/bggRGjQaUbCoE/PiliPlus.git` | 上游，只读 |
+| `github-fork` | `git@github.com:k4m7v2pz/piliplus-shorts.git` | 主仓库（公开） |
+| ~~`atomgit`~~ | ~~`git@atomgit.com:k4m7v2pz/piliplus.git`~~ | 已归档，不再推送 |
+
+## 快速编译
 
 ### 前置条件
-- Flutter SDK 3.47.4（用 FVM 管理，路径 `~/fvm/versions/3.47.4`）
-- Xcode 27.0（需 `sudo xcodebuild -license accept`）
-- CocoaPods（`/opt/homebrew/bin/pod`）
+- Flutter SDK **3.47.5**（FVM 管理，路径 `~/fvm/versions/3.47.5`）
+- Xcode 27 + CocoaPods
 - 走代理：`export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890`
+- git 全局代理：`git config --global http.proxy http://127.0.0.1:7890`
 
-### 关键步骤（CI patch）
-PiliPlus 编译前必须给 Flutter SDK 打补丁（暴露私有 API），否则编译失败：
+### 打补丁（flutter clean 后必须重做）
+
+PiliPlus 编译前必须给 Flutter SDK 和 material_ui 打补丁（暴露私有 API）：
 
 ```bash
-cd ~/fvm/versions/3.47.4
-PILI=<仓库路径>
-for patch in modal_barrier text_selection mouse_cursor image_anim layout_builder \
-  navigation_drawer popup_menu fab null_safety_for_selectable_region \
-  selectable_region editable_text text_field scroll_position scrollable \
-  scrollable_gesture draggable_scrollable_sheet scaffold text text_painter \
-  sliver refresh_indicator; do
-  git apply "$PILI/lib/scripts/$patch.patch"
+cd ~/fvm/versions/3.47.5
+PILI=<仓库绝对路径>
+
+# Flutter SDK patches
+for patch in "$PILI"/lib/scripts/*.patch; do
+  git apply "$patch" 2>/dev/null
 done
-```
 
-还要给 material_ui 包打补丁：
-```bash
-cd ~/.pub-cache/hosted/pub.dev/material_ui-*
+# material_ui patches（注意版本号，pub get 后会变）
+MATVER=$(ls -d ~/.pub-cache/hosted/pub.dev/material_ui-* | tail -1)
+cd "$MATVER"
 for patch in "$PILI"/lib/scripts/material/*.patch; do
   git apply "$patch"
 done
+# 删除 popGestureEnabled 行
+sed -i '' '/popGestureEnabled: true,/d' lib/src/scaffold.dart
 ```
 
-注意：`LocalHistoryEntry` 没有 `popGestureEnabled` 参数，需手动删掉 material_ui scaffold.dart 中的 `popGestureEnabled: true,` 行。
+**注意**：`git apply` 对已打过补丁的文件会报错，忽略即可（用 `2>/dev/null`）。
 
-### 编译
+### 编译命令
+
 ```bash
 cd <仓库路径>
-fvm use 3.47.4
+export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890
+fvm use 3.47.5
 fvm flutter pub get
-fvm flutter build macos --release
-```
-产物：`build/macos/Build/Products/Release/PiliPlus.app`
 
-### 不要用 master channel
-Flutter master（3.48.0）的内部 API 和 PiliPlus 不兼容（`OverridingTextStyleTextSpanUtils`、`WidgetSpan.rawText` 等），必须用 3.47.4 stable。
+# Mac
+fvm flutter build macos --release
+# 产物：build/macos/Build/Products/Release/PiliPlus.app
+
+# Android
+fvm flutter build apk --release
+# 产物：build/app/outputs/flutter-apk/app-release.apk
+```
+
+### Android 安装后必做
+```bash
+adb -s <设备地址> install -r build/app/outputs/flutter-apk/app-release.apk
+adb -s <设备地址> shell appops set com.example.piliplus android:write_settings allow
+```
+
+## ADB 连接
+
+- 设备：Redmi Turbo 3
+- mDNS 地址：`adb-da0fda92-Eo7NE1._adb-tls-connect._tcp`
+- **VPN 开着时 ADB 无法连接**（无线调试绑定到 TUN 接口），需关 VPN 或用 USB 线
+- mDNS 解析失败时，用无线调试页面显示的 IP 直连：`adb connect 192.168.x.x:port`
+
+## 合并上游
+
+```bash
+git fetch origin
+git merge origin/main
+# 冲突通常在：MainActivity.kt（保留竖屏锁定代码）、pubspec.yaml（media-kit ref）
+```
+
+合并后需要重新打补丁（flutter clean 会清除 SDK 补丁）。
 
 ## 短视频功能文件
-- `lib/http/api.dart` — 新增 `storyFeed = /x/v2/feed/index/story`
-- `lib/http/video.dart` — 新增 `storyFeedList()` 方法
-- `lib/pages/short_video/controller.dart` — GetX Controller
-- `lib/pages/short_video/view.dart` — PageView 上下滑播放器
-- `lib/models/common/home_tab_type.dart` — 新增 `short('短视频')` tab
+
+- `lib/pages/short_video/controller.dart` — GetX Controller，单 mpv 播放器
+- `lib/pages/short_video/view.dart` — PageView 上下滑、封面 overlay、进度条
+- `assets/short_video_filter.json` — 屏蔽规则（热更新，推到 `/sdcard/Android/data/com.example.piliplus/files/`）
+- `lib/common/constants.dart` — `sourceCodeUrl` 指向 GitHub fork
+
+## 敏感信息守卫
+
+`scripts/bash/check-sensitive.sh` 在推送到 `github-fork` 前自动检查：
+公网 IP、SSH 密钥、私钥内容、私人邮箱、机器标识（vultr/thinkpad）。
+已在 `.git/hooks/pre-push` 配置，只对公开 fork 触发。
 
 ## 已知问题
-- release 模式看不到 print 输出
+
+- macOS 退出时 SIGABRT（FFI 回调，不影响使用）
+- 单 mpv 播放器切视频有短暂加载（曾试 3/4 实例预加载，均导致视频错位，已回退）
+- 异步屏蔽检查（音乐/标签）必须加 generation 守卫，否则用户滑走后误跳转
 - `videoControllers` 必须用 `RxMap`，否则 Obx 不 rebuild
-- 已关闭自动更新检查（main/controller.dart 中注释掉了 `Update.checkUpdate()`）
-
-## 致命踩坑：media_kit_video 用 stub 导致 MissingPluginException
-
-**症状**：自己 `Player.create()` 成功，但 `VideoController.create()` 抛
-`MissingPluginException(No implementation found for method VideoOutputManager.Create on channel com.alexmercerind/media_kit_video)`。
-PiliPlus 自己的长视频播放器却正常。
-
-**根因**：PiliPlus fork 的 `My-Responsitories/media-kit` 仓库里，
-`media_kit_video/macos/media_kit_video/Package.swift` 有个 `hasLibs` 检测——
-它在相对路径 `../media_kit_libs_macos_video` 找 mpv 二进制包。
-找不到就编译 **stub 版本**（空 `register()`，不注册任何 method handler）。
-
-仓库实际目录结构：
-```
-media-kit/
-├── media_kit_video/
-│   └── macos/media_kit_video/Package.swift   ← 找 ../media_kit_libs_macos_video
-└── libs/macos/
-    └── media_kit_libs_macos_video/           ← 实际在这，../../../libs/macos/
-```
-
-**修复**（已做，重新 clone 后需重做）：
-1. `pubspec.yaml` 的 `dependency_overrides` 里必须加：
-   ```yaml
-   media_kit_libs_macos_video:
-     git:
-       url: https://github.com/My-Responsitories/media-kit.git
-       path: libs/macos/media_kit_libs_macos_video
-       ref: upstream
-   ```
-2. 在 pub-cache 里建 symlink：
-   ```bash
-   cd ~/.pub-cache/git/media-kit-*/media_kit_video/macos
-   ln -sf ../../../libs/macos/media_kit_libs_macos_video media_kit_libs_macos_video
-   ```
-3. 清 SwiftPM 缓存后重编：`rm -rf ~/Library/Caches/org.swift.swiftpm/`
-   然后 `xcodebuild -resolvePackageDependencies`（需走 7890 代理下 mpv 二进制），再 `fvm flutter build macos --release`。
-
-**验证**：终端日志出现 `VideoOutput: enableHardwareAcceleration: true` +
-`TextureGL: resize: 1920.0x1080.0` = 插件正常工作。
-
-## 其他踩坑
-- mpv 播放 B 站视频必须加请求头：
-  `player.setMediaHeader(userAgent: BrowserUa.pc, referer: HttpString.baseUrl)`
-  否则 mpv 报 `Failed to open ...`（CDN 拒绝无 UA 的请求）。
-- `kill -9 $(pgrep -f "PiliPlus.app")` 杀进程，`pkill` 无效。
-- 不要往 `/Applications` 拷贝（会导致 Spotlight 索引出两个 PiliPlus），直接从 build 目录 open。
-- macOS Sandbox 下 `File('/Users/user2/Documents/xxx')` 会被重定向到
-  `~/Library/Containers/com.example.piliplus/Data/Documents/`。
+- Mac 端 incremental build 会丢失 media_kit 插件链接，必须 `flutter clean` 后重编
+- macOS Sandbox 下 `File()` 路径会被重定向到 `~/Library/Containers/com.example.piliplus/Data/`

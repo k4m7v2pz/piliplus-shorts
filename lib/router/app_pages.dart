@@ -4,6 +4,7 @@ import 'package:PiliPlus/pages/audio/view.dart';
 import 'package:PiliPlus/pages/blacklist/view.dart';
 import 'package:PiliPlus/pages/bubble/view.dart';
 import 'package:PiliPlus/pages/danmaku_block/view.dart';
+import 'package:PiliPlus/pages/short_video/filter_settings.dart';
 import 'package:PiliPlus/pages/dlna/view.dart';
 import 'package:PiliPlus/pages/download/view.dart';
 import 'package:PiliPlus/pages/dynamics/view.dart';
@@ -148,6 +149,7 @@ class Routes {
     GetPage(name: '/subDetail', page: () => const SubDetailPage()),
     // 弹幕屏蔽管理
     GetPage(name: '/danmakuBlock', page: () => const DanmakuBlockPage()),
+    GetPage(name: '/svFilter', page: () => const SvFilterSettings()),
     GetPage(name: '/sponsorBlock', page: () => const SponsorBlockPage()),
     GetPage(name: '/createFav', page: () => const CreateFavPage()),
     GetPage(name: '/editProfile', page: () => const EditProfilePage()),

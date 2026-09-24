@@ -10,6 +10,8 @@ import 'package:PiliPlus/http/video.dart';
 import 'package:PiliPlus/http/sponsor_block.dart';
 import 'package:PiliPlus/http/init.dart';
 import 'package:PiliPlus/http/user.dart';
+import 'package:PiliPlus/utils/storage.dart';
+import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:PiliPlus/models/common/sponsor_block/segment_type.dart';
 import 'package:PiliPlus/models/common/video/video_type.dart';
@@ -106,15 +108,33 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
         _dbg('Loaded filter from bundled asset');
       }
       final m = jsonMap!;
-      _blockedBvids = (m['blockedBvids'] as List?)?.cast<String>().toSet() ?? {};
-      _blockedOwnerMids = (m['blockedOwnerMids'] as List?)?.cast<int>().toSet() ?? {};
-      _newsKeywords = (m['newsKeywords'] as List?)?.cast<String>() ?? [];
-      _titleKeywords = (m['titleKeywords'] as List?)?.cast<String>() ?? [];
-      _blockedMusicKeywords = (m['blockedMusicKeywords'] as List?)?.cast<String>() ?? [];
+      _blockedBvids = (m['blockedBvids'] as List?)?.map((e) => e.toString()).toSet() ?? {};
+      _blockedOwnerMids = (m['blockedOwnerMids'] as List?)?.map((e) {
+        if (e is int) return e;
+        if (e is Map) return (e['mid'] as num).toInt();
+        return 0;
+      }).where((e) => e > 0).toSet() ?? {};
+      _newsKeywords = _extractWords(m['newsKeywords']);
+      _titleKeywords = _extractWords(m['titleKeywords']);
+      _blockedMusicKeywords = _extractWords(m['blockedMusicKeywords']);
+      // merge personal keywords from local storage
+      _newsKeywords.addAll(GStorage.localCache.get(LocalCacheKey.svNewsKeywords, defaultValue: <String>[]));
+      _titleKeywords.addAll(GStorage.localCache.get(LocalCacheKey.svTitleKeywords, defaultValue: <String>[]));
+      _blockedMusicKeywords.addAll(GStorage.localCache.get(LocalCacheKey.svMusicKeywords, defaultValue: <String>[]));
       _dbg('Filter loaded: ${_blockedBvids.length} bvids, ${_blockedOwnerMids.length} mids, ${_newsKeywords.length} keywords');
     } catch (e) {
       _dbg('Filter load failed: $e');
     }
+  }
+
+
+  List<String> _extractWords(dynamic list) {
+    if (list is! List) return [];
+    return list.map((e) {
+      if (e is String) return e;
+      if (e is Map) return (e['word'] ?? '').toString();
+      return '';
+    }).where((e) => e.isNotEmpty).toList();
   }
 
   /// Check if video uses a blocked song via player/v2 bgm_info

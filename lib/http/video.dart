@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'dart:convert';
 
 import 'package:PiliPlus/common/constants.dart';
@@ -161,6 +163,62 @@ abstract final class VideoHttp {
       return Success(list);
     } else {
       return Error(res.data['message']);
+    }
+  }
+
+  /// 竖屏沉浸短视频 feed（上下滑）
+  static Future<LoadingState<List<RcmdVideoItemAppModel>>> storyFeedList({
+    String? bvid,
+    int? playerOverlayStyle,
+  }) async {
+    final params = <String, dynamic>{
+      'build': 8430300,
+      'c_locale': 'zh_CN',
+      'channel': 'master',
+      'device': 'phone',
+      'device_name': 'android',
+      'disable_rcmd': 0,
+      'fnval': 976,
+      'fnver': 0,
+      'force_host': 2,
+      'fourk': 1,
+      'guidance': 1,
+      'https_url_req': 1,
+      'mobi_app': 'android_i',
+      'network': 'wifi',
+      'platform': 'android',
+      'player_net': 1,
+      'qn': 32,
+      's_locale': 'zh_CN',
+      'voice_balance': 0,
+      if (bvid != null) 'bvid': bvid,
+      'auto_play': 1,
+    };
+    final res = await Request().get(
+      Api.storyFeed,
+      queryParameters: params,
+      options: Options(
+        headers: {
+          'buvid': LoginHttp.buvid,
+          'app-key': 'android_hd',
+          'User-Agent': Constants.userAgent,
+          'x-bili-trace-id': Constants.traceId,
+          'env': 'prod',
+        },
+      ),
+    );
+    if (res.data['code'] == 0) {
+      final list = <RcmdVideoItemAppModel>[];
+      for (final i in res.data['data']['items'] ?? []) {
+        final goto_ = i['goto'] ?? i['card_goto']; if (goto_ == 'vertical_av' || goto_ == 'av') {
+          try {
+            list.add(RcmdVideoItemAppModel.fromJson(i));
+          } catch (_) {}
+        }
+      }
+      return Success(list);
+    } else {
+      return Error(res.data['message'] ?? '请求失败');
     }
   }
 

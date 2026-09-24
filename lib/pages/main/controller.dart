@@ -40,6 +40,8 @@ class MainController extends GetxController
   late dynamic controller;
   final RxInt selectedIndex = 0.obs;
 
+  final RxBool isShortVideoFullscreen = false.obs;
+  final ValueNotifier<bool> fullscreenNotifier = ValueNotifier<bool>(false);
   final RxInt dynCount = 0.obs;
   late DynamicBadgeMode dynamicBadgeMode;
   late bool checkDynamic = Pref.checkDynamic;
@@ -75,9 +77,9 @@ class MainController extends GetxController
   @override
   void onInit() {
     super.onInit();
-    if (Pref.autoUpdate) {
-      Update.checkUpdate();
-    }
+    // 已关闭自动更新检查
+    // 已关闭自动更新检查
+    // 已关闭自动更新检查
 
     setNavBarConfig();
 

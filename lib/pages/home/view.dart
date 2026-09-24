@@ -1,4 +1,6 @@
 import 'package:PiliPlus/common/style.dart';
+import '../short_video/controller.dart';
+import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/common/widgets/custom_height_widget.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart' show tabBarView;
@@ -31,6 +33,33 @@ class _HomePageState extends CommonPageState<HomePage>
 
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeController.tabController.addListener(_onTabChange);
+  }
+
+  void _onTabChange() {
+    final isShort = _homeController.tabController.index ==
+        _homeController.tabs.indexOf(HomeTabType.short);
+    _mainController.isShortVideoFullscreen.value = isShort;
+    _mainController.fullscreenNotifier.value = isShort;
+    // Reset top bar offset so search bar returns to correct position
+    _mainController.barOffset?.value = 0;
+    if (isShort && !_homeController.tabController.indexIsChanging) {
+      try { Get.find<ShortVideoController>().ensureStarted(); } catch (_) {}
+    } else if (!isShort) {
+      // Pause short video when leaving the tab
+      try { Get.find<ShortVideoController>().pauseAll(); } catch (_) {}
+    }
+  }
+
+  @override
+  void dispose() {
+    _homeController.tabController.removeListener(_onTabChange);
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -75,21 +104,23 @@ class _HomePageState extends CommonPageState<HomePage>
     } else {
       tabBar = const SizedBox(height: 6);
     }
+    final isShort = _homeController.tabController.index ==
+        _homeController.tabs.indexOf(HomeTabType.short);
     return Column(
-      children: [
-        if (!_mainController.useSideBar &&
-            MediaQuery.sizeOf(context).isPortrait)
-          customAppBar(),
-        tabBar,
-        Expanded(
-          child: onBuild(
-            tabBarView(
-              controller: _homeController.tabController,
-              children: _homeController.tabs.map((e) => e.page).toList(),
+        children: [
+          if (!_mainController.useSideBar &&
+              MediaQuery.sizeOf(context).isPortrait)
+            customAppBar(),
+          tabBar,
+          Expanded(
+            child: onBuild(
+              tabBarView(
+                controller: _homeController.tabController,
+                children: _homeController.tabs.map((e) => e.page).toList(),
+              ),
             ),
           ),
-        ),
-      ],
+        ],
     );
   }
 
@@ -104,39 +135,8 @@ class _HomePageState extends CommonPageState<HomePage>
         userAvatar(colorScheme: _colorScheme, mainController: _mainController),
       ],
     );
-    if (_homeController.hideTopBar) {
-      if (_mainController.barOffset case final barOffset?) {
-        return Obx(
-          () {
-            final offset = barOffset.value;
-            return CustomHeightWidget(
-              offset: Offset(0, -offset),
-              height: Style.topBarHeight - offset,
-              child: Padding(
-                padding: padding,
-                child: child,
-              ),
-            );
-          },
-        );
-      }
-      if (_homeController.showTopBar case final showTopBar?) {
-        return Obx(() {
-          final showSearchBar = showTopBar.value;
-          return AnimatedOpacity(
-            opacity: showSearchBar ? 1 : 0,
-            duration: const Duration(milliseconds: 300),
-            child: AnimatedContainer(
-              curve: Curves.easeInOutCubicEmphasized,
-              duration: const Duration(milliseconds: 500),
-              height: showSearchBar ? Style.topBarHeight : 0,
-              padding: padding,
-              child: child,
-            ),
-          );
-        });
-      }
-    }
+    // Always use fixed height - barOffset auto-hide causes bugs with short video tab
+
     return Container(
       height: Style.topBarHeight,
       padding: padding,

@@ -10,11 +10,14 @@ import 'package:PiliPlus/pages/rank/controller.dart';
 import 'package:PiliPlus/pages/rank/view.dart';
 import 'package:PiliPlus/pages/rcmd/controller.dart';
 import 'package:PiliPlus/pages/rcmd/view.dart';
+import 'package:PiliPlus/pages/short_video/controller.dart';
+import 'package:PiliPlus/pages/short_video/view.dart';
 import 'package:get/get.dart';
 import 'package:material_ui/material_ui.dart';
 
 enum HomeTabType implements EnumWithLabel {
   live('直播'),
+  short('短视频'),
   rcmd('推荐'),
   hot('热门'),
   rank('分区'),
@@ -28,6 +31,7 @@ enum HomeTabType implements EnumWithLabel {
 
   ScrollOrRefreshMixin Function() get ctr => switch (this) {
     HomeTabType.live => Get.find<LiveController>,
+    HomeTabType.short => Get.find<ShortVideoController>,
     HomeTabType.rcmd => Get.find<RcmdController>,
     HomeTabType.hot => Get.find<HotController>,
     HomeTabType.rank => Get.find<RankController>,
@@ -37,6 +41,7 @@ enum HomeTabType implements EnumWithLabel {
 
   Widget get page => switch (this) {
     HomeTabType.live => const LivePage(),
+    HomeTabType.short => const ShortVideoPage(),
     HomeTabType.rcmd => const RcmdPage(),
     HomeTabType.hot => const HotPage(),
     HomeTabType.rank => const RankPage(),

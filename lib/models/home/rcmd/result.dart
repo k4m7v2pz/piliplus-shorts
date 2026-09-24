@@ -62,10 +62,13 @@ class RcmdStat extends BaseStat {
 
 class RcmdOwner extends BaseOwner {
   RcmdOwner.fromJson(Map<String, dynamic> json, String? goto) {
-    name = goto == 'av'
-        ? (json['args']?['up_name'] ?? '')
-        : (json['desc_button']?['text'] ?? '');
-    mid = json['args']?['up_id'] ?? 0;
+    // story feed 接口用 json['owner']['name']/'mid'
+    // 普通推荐流用 json['args']['up_name']/'up_id'
+    name = json['owner']?['name'] ??
+        ((goto == 'av' || goto == 'vertical_av')
+            ? (json['args']?['up_name'] ?? json['desc_button']?['text'] ?? '')
+            : (json['desc_button']?['text'] ?? ''));
+    mid = json['owner']?['mid'] ?? json['args']?['up_id'] ?? 0;
   }
 }
 

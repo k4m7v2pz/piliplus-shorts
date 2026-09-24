@@ -10,6 +10,8 @@ import 'package:PiliPlus/common/widgets/main_layout.dart';
 import 'package:PiliPlus/common/widgets/route_aware_mixin.dart';
 import 'package:PiliPlus/models/common/nav_bar_config.dart';
 import 'package:PiliPlus/pages/home/view.dart';
+import 'package:PiliPlus/pages/home/controller.dart';
+import 'package:PiliPlus/models/common/home_tab_type.dart';
 import 'package:PiliPlus/pages/main/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
@@ -493,20 +495,19 @@ class _MainAppState extends PopScopeState<MainApp>
 
     Widget? sideBar;
     Widget? bottomNav;
+    final viewPadding = MediaQuery.viewPaddingOf(context);
     final EdgeInsets padding;
     if (_mainController.useBottomNav) {
-      bottomNav = _bottomNav;
-      if (bottomNav != null) {
-        bottomNav = MediaQuery.removePadding(
-          context: context,
-          removeTop: true,
-          child: bottomNav,
-        );
-      }
+      final bottomNavWidget = _bottomNav;
+      bottomNav = MediaQuery.removePadding(
+        context: context,
+        removeTop: true,
+        child: bottomNavWidget ?? const SizedBox.shrink(),
+      );
       padding = .only(
-        top: _padding.top,
-        left: _padding.left,
-        right: _padding.right,
+        top: viewPadding.top,
+        left: viewPadding.left,
+        right: viewPadding.right,
       );
     } else {
       sideBar = DecoratedBox(
@@ -519,7 +520,7 @@ class _MainAppState extends PopScopeState<MainApp>
         ),
         child: _sideBar(),
       );
-      padding = .only(top: _padding.top, right: _padding.right);
+      padding = .only(top: viewPadding.top, right: viewPadding.right);
     }
 
     child = Material(

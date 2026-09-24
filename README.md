@@ -1,6 +1,6 @@
-# PiliPlus — 短视频改版（私有 fork）
+# PiliPlus — 短视频改版
 
-基于上游 [bggRGjQaUbCoE/PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) 的私有改动，仅自用，不传播。
+基于上游 [bggRGjQaUbCoE/PiliPlus](https://github.com/bggRGjQaUbCoE/PiliPlus) 的 fork，新增竖屏短视频 feed。
 
 ## 改了什么
 

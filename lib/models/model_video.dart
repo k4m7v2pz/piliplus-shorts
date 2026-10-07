@@ -6,6 +6,9 @@ abstract class BaseSimpleVideoItemModel {
   int duration = -1;
   late BaseOwner owner;
   late BaseStat stat;
+  /// Real video frame size from feed API `dimension` (width/height).
+  int? videoWidth;
+  int? videoHeight;
 }
 
 abstract class BaseVideoItemModel extends BaseSimpleVideoItemModel {

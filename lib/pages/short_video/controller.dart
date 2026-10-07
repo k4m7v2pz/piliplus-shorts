@@ -72,6 +72,9 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   StreamSubscription? _heightSub;
   final RxnInt videoWidth = RxnInt();
   final RxnInt videoHeight = RxnInt();
+  /// Pre-resolved cover aspect ratios (url -> w/h), so the cover layer
+  /// renders with the correct ratio (and position) before video size arrives.
+  final RxMap<String, double> coverAr = RxMap<String, double>();
   /// [startMs, endMs, categoryColor] segments marked by SponsorBlock
   final RxList<List<dynamic>> blockSegments = <List<dynamic>>[].obs;
   bool _isLoadingVideo = false;
@@ -221,6 +224,37 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     return collected;
   }
 
+  Future<void> _resolveCoverSizes(Iterable<dynamic> items) async {
+    for (final it in items) {
+      final cover = it.cover;
+      if (cover is String && cover.isNotEmpty && !coverAr.containsKey(cover)) {
+        _resolveCoverSize(cover);
+      }
+    }
+  }
+
+  Future<void> _resolveCoverSize(String url) async {
+    try {
+      final stream = NetworkImage(url).resolve(ImageConfiguration.empty);
+      final completer = Completer<ImageInfo>();
+      late ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (info, _) {
+          if (!completer.isCompleted) completer.complete(info);
+        },
+        onError: (e, s) {
+          if (!completer.isCompleted) completer.completeError(e);
+        },
+      );
+      stream.addListener(listener);
+      final info = await completer.future;
+      stream.removeListener(listener);
+      if (info.image.width > 0 && info.image.height > 0) {
+        coverAr[url] = info.image.width / info.image.height;
+      }
+    } catch (_) {}
+  }
+
   Future<void> loadFirst() async {
     await _filterLoadFuture;
     isLoading.value = true;
@@ -230,6 +264,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     if (fresh.isNotEmpty) {
       items.assignAll(fresh);
       _lastItem = items.last;
+      _resolveCoverSizes(fresh);
     }
     isLoading.value = false;
     if (hasStarted.value && items.isNotEmpty) {
@@ -266,6 +301,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
         if (items.isNotEmpty) {
           _lastItem = items.last;
         }
+        _resolveCoverSizes(fresh);
         // Pre-check the newly appended tail so swiping there is seamless
         _preDeepCheck(items.length - 1);
         _preDeepCheck(items.length - 2);

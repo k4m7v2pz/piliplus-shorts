@@ -207,8 +207,9 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                               child: Obx(() {
                                 final w = _c.videoWidth.value;
                                 final h = _c.videoHeight.value;
+                                final dar = (currentItem?.videoWidth != null && currentItem?.videoHeight != null && currentItem!.videoWidth! > 0 && currentItem!.videoHeight! > 0) ? currentItem!.videoWidth! / currentItem!.videoHeight! : 0.0;
                                 _c.currentIndex.value;
-                                final ar = (w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0;
+                                final ar = dar > 0 ? dar : ((w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0);
                                 final dy = ar > 0.7 ? -MediaQuery.of(context).size.height * 0.15 : 0.0;
                                 return IgnorePointer(
                                   child: Transform.translate(
@@ -245,14 +246,17 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                                 ? Obx(() {
                                     final w = _c.videoWidth.value;
                                     final h = _c.videoHeight.value;
+                                    final dar = (currentItem?.videoWidth != null && currentItem?.videoHeight != null && currentItem!.videoWidth! > 0 && currentItem!.videoHeight! > 0) ? currentItem!.videoWidth! / currentItem!.videoHeight! : 0.0;
+                                    final car = _c.coverAr[currentItem!.cover ?? ''] ?? 0.0;
                                     _c.currentIndex.value;
                                     final cover = Image.network(
                                       currentItem!.cover!,
                                       fit: BoxFit.contain,
                                       errorBuilder: (a, b, c) => const SizedBox(),
                                     );
-                                    final ar = (w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0;
-                                    return Center(child: AspectRatio(aspectRatio: ar, child: cover));
+                                    final ar = dar > 0 ? dar : (car > 0 ? car : ((w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0));
+                                    final dy = ar > 0.7 ? -MediaQuery.of(context).size.height * 0.15 : 0.0;
+                                    return Transform.translate(offset: Offset(0, dy), child: Center(child: AspectRatio(aspectRatio: ar, child: cover)));
                                   })
                                 : const SizedBox(),
                             ),
@@ -274,16 +278,19 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                             ? Obx(() {
                                 final w = _c.videoWidth.value;
                                 final h = _c.videoHeight.value;
+                                final dar = (currentItem?.videoWidth != null && currentItem?.videoHeight != null && currentItem!.videoWidth! > 0 && currentItem!.videoHeight! > 0) ? currentItem!.videoWidth! / currentItem!.videoHeight! : 0.0;
+                                final car = _c.coverAr[currentItem!.cover ?? ''] ?? 0.0;
                                 _c.currentIndex.value;
                                 final cover = Image.network(
                                   currentItem!.cover!,
                                   fit: BoxFit.contain,
                                   errorBuilder: (a, b, c) => const SizedBox(),
                                 );
-                                final ar = (w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0;
+                                final ar = dar > 0 ? dar : (car > 0 ? car : ((w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0));
+                                final dy = ar > 0.7 ? -MediaQuery.of(context).size.height * 0.15 : 0.0;
                                 return Container(
                                   color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.black : const Color(0xFFFDFBFF),
-                                  child: Center(child: AspectRatio(aspectRatio: ar, child: cover)),
+                                  child: Transform.translate(offset: Offset(0, dy), child: Center(child: AspectRatio(aspectRatio: ar, child: cover))),
                                 );
                               })
                             : const SizedBox(),
@@ -564,15 +571,18 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                       child: Obx(() {
                         final w = _c.videoWidth.value;
                         final h = _c.videoHeight.value;
+                        final dar = (currentItem?.videoWidth != null && currentItem?.videoHeight != null && currentItem!.videoWidth! > 0 && currentItem!.videoHeight! > 0) ? currentItem!.videoWidth! / currentItem!.videoHeight! : 0.0;
                         _c.currentIndex.value; // rebuild on slot change
-                        final ar = (w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0;
+                        final ar = dar > 0 ? dar : ((w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0);
                         // Wider videos (1:1 to 16:9) shift up so bottom buttons are visible
-                        final align = Alignment.center;
+                        final dy = ar > 0.7 ? -MediaQuery.of(context).size.height * 0.15 : 0.0;
                         return Container(
                           color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.black : const Color(0xFFFDFBFF),
-                          child: Align(
-                            alignment: align,
-                            child: IgnorePointer(
+                          child: Transform.translate(
+                            offset: Offset(0, dy),
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: IgnorePointer(
                               child: Video(
                                 controller: _c.videoController!,
                                 fit: BoxFit.contain,
@@ -582,7 +592,8 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                               ),
                             ),
                           ),
-                        );
+                        ),
+                      );
                       }),
                     ),
 
@@ -623,15 +634,21 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                                 child: Obx(() {
                                   final w = _c.videoWidth.value;
                                   final h = _c.videoHeight.value;
+                                  final dar = (currentItem?.videoWidth != null && currentItem?.videoHeight != null && currentItem!.videoWidth! > 0 && currentItem!.videoHeight! > 0) ? currentItem!.videoWidth! / currentItem!.videoHeight! : 0.0;
+                                  final car = _c.coverAr[currentItem!.cover ?? ''] ?? 0.0;
                                   final cover = Image.network(
                                     currentItem!.cover!,
                                     fit: BoxFit.contain,
                                     errorBuilder: (a, b, c) => const SizedBox(),
                                   );
-                                  final ar = (w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0;
-                                  return AspectRatio(
-                                    aspectRatio: ar,
-                                    child: cover,
+                                  final ar = dar > 0 ? dar : (car > 0 ? car : ((w != null && h != null && w > 0 && h > 0) ? w / h : 9.0 / 16.0));
+                                  final dy = ar > 0.7 ? -MediaQuery.of(context).size.height * 0.15 : 0.0;
+                                  return Transform.translate(
+                                    offset: Offset(0, dy),
+                                    child: AspectRatio(
+                                      aspectRatio: ar,
+                                      child: cover,
+                                    ),
                                   );
                                 }),
                               ),

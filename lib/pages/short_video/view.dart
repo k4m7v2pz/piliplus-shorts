@@ -229,7 +229,14 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                       // Cover image - instant show when not ready, fade out when ready
                       Obx(() {
                         final ready = _c.isVideoReady.value;
+                        _c.deepCheckVersion.value; // rebuild when a check finishes
                         if (!ready) {
+                          // While deep check is pending, don't reveal the video
+                          if (!_c.isDeepChecked(_c.currentIndex.value)) {
+                            return const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            );
+                          }
                           // Instantly show cover, no fade-in
                           return Positioned.fill(
                             child: Container(
@@ -302,8 +309,12 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                           child: Container(width: MediaQuery.sizeOf(context).width / 6),
                         ),
                       ),
-                      if (currentItem != null)
-                        Positioned(
+                      Obx(() {
+                        _c.deepCheckVersion.value;
+                        final idx = _c.currentIndex.value;
+                        final item = (idx >= 0 && idx < _c.items.length) ? _c.items[idx] : null;
+                        if (item == null || !_c.isDeepChecked(idx)) return const SizedBox();
+                        return Positioned(
                           left: 16,
                           right: 80,
                           bottom: 40,
@@ -311,9 +322,9 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (currentItem.owner?.name?.isNotEmpty == true)
+                              if (item.owner?.name?.isNotEmpty == true)
                                 Text(
-                                  '@${currentItem.owner!.name}',
+                                  '@${item.owner!.name}',
                                   style: TextStyle(
                                     color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.white : Colors.black,
                                     fontSize: 15,
@@ -322,14 +333,15 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                                 ),
                               const SizedBox(height: 6),
                               Text(
-                                currentItem.title ?? '',
+                                item.title ?? '',
                                 style: TextStyle(color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.white : Colors.black.withOpacity(0.8), fontSize: 13),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
-                      ),
+                        );
+                      }),
                       Positioned(
                         left: 0,
                         right: 0,
@@ -387,7 +399,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                                 }
                               },
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 20),
                             _SideButton(
                               icon: Icons.arrow_downward,
                               label: '下一条',
@@ -408,14 +420,18 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                             ),
                             const SizedBox(height: 20),
                             _SideButton(
+                              icon: Icons.filter_list,
+                              label: '屏蔽',
+                              onTap: () {
+                                debugPrint('SVFILTER-DEBUG: button tapped');
+                                Get.toNamed('/svFilter');
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            _SideButton(
                               icon: Icons.info_outline,
                               label: '详情页',
                               onTap: _c.openComment,
-                            ),
-                            _SideButton(
-                              icon: Icons.filter_list,
-                              label: '屏蔽',
-                              onTap: () => Get.toNamed('/svFilter'),
                             ),
                           ],
                         ),
@@ -570,6 +586,23 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                       }),
                     ),
 
+                  // Deep-check pending: show loading instead of revealing the video
+                  Obx(() {
+                    _c.deepCheckVersion.value;
+                    final idx = _c.currentIndex.value;
+                    if (idx >= 0 && idx < _c.items.length && !_c.isDeepChecked(idx)) {
+                      return Positioned.fill(
+                        child: Container(
+                          color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.black : const Color(0xFFFDFBFF),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox();
+                  }),
+
                   // Cover image overlay - hide mpv gray flash (skip first video, unknown ratio)
                   if (currentItem?.cover != null && _c.currentIndex.value > 0)
                     Positioned.fill(
@@ -609,8 +642,12 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                     ),
 
                   // 3. Info overlay at bottom
-                  if (currentItem != null)
-                    Positioned(
+                  Obx(() {
+                    _c.deepCheckVersion.value;
+                    final idx = _c.currentIndex.value;
+                    final item = (idx >= 0 && idx < _c.items.length) ? _c.items[idx] : null;
+                    if (item == null || !_c.isDeepChecked(idx)) return const SizedBox();
+                    return Positioned(
                       left: 16,
                       right: 80,
                       bottom: 40,
@@ -618,9 +655,9 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (currentItem.owner?.name?.isNotEmpty == true)
+                          if (item.owner?.name?.isNotEmpty == true)
                             Text(
-                              '@${currentItem.owner!.name}',
+                              '@${item.owner!.name}',
                               style: TextStyle(
                                 color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.white : Colors.black,
                                 fontSize: 15,
@@ -629,14 +666,15 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                             ),
                           const SizedBox(height: 6),
                           Text(
-                            currentItem.title ?? '',
+                            item.title ?? '',
                             style: TextStyle(color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.white : Colors.black.withOpacity(0.8), fontSize: 13),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
-                    ),
+                    );
+                  }),
 
                   // 4. Progress bar at bottom
                   Positioned(
@@ -710,7 +748,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                             }
                           },
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 20),
                         _SideButton(
                           icon: Icons.arrow_downward,
                           label: '下一条',

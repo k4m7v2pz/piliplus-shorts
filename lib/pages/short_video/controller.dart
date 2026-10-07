@@ -198,17 +198,38 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   @override
   Future<void> onRefresh() => loadFirst();
 
+  /// Fetch story feed repeatedly, skipping blocked items, until we have
+  /// `count` unblocked videos (or ran `maxAttempts` requests). The cursor
+  /// always advances with the raw last item of each response, so blocked
+  /// batches don't stall the feed.
+  Future<List> _fetchUnblocked({String? bvid, int count = 10, int maxAttempts = 5}) async {
+    final collected = <dynamic>[];
+    for (var attempt = 0; attempt < maxAttempts && collected.length < count; attempt++) {
+      final result = await VideoHttp.storyFeedList(bvid: bvid);
+      if (result case Success(:final response)) {
+        if (response.isEmpty) break;
+        bvid = response.last.bvid; // advance cursor with the raw last item
+        for (final item in _filter(response)) {
+          final b = item.bvid;
+          if (b != null && collected.any((e) => e.bvid == b)) continue;
+          collected.add(item);
+        }
+      } else {
+        break;
+      }
+    }
+    return collected;
+  }
+
   Future<void> loadFirst() async {
     await _filterLoadFuture;
     isLoading.value = true;
     _lastItem = null;
     items.clear();
-    final result = await VideoHttp.storyFeedList();
-    if (result case Success(:final response)) {
-      items.assignAll(_filter(response));
-      if (items.isNotEmpty) {
-        _lastItem = items.last;
-      }
+    final fresh = await _fetchUnblocked(count: 12);
+    if (fresh.isNotEmpty) {
+      items.assignAll(fresh);
+      _lastItem = items.last;
     }
     isLoading.value = false;
     if (hasStarted.value && items.isNotEmpty) {
@@ -237,14 +258,21 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   Future<void> loadMore() async {
     if (isLoadingMore.value) return;
     isLoadingMore.value = true;
-    final result = await VideoHttp.storyFeedList(bvid: _lastItem?.bvid);
-    if (result case Success(:final response)) {
-      items.addAll(_filter(response));
-      if (items.isNotEmpty) {
-        _lastItem = items.last;
+    try {
+      final fresh = await _fetchUnblocked(bvid: _lastItem?.bvid, count: 8);
+      if (fresh.isNotEmpty) {
+        final known = items.map((e) => e.bvid).toSet();
+        items.addAll(fresh.where((e) => !known.contains(e.bvid)));
+        if (items.isNotEmpty) {
+          _lastItem = items.last;
+        }
+        // Pre-check the newly appended tail so swiping there is seamless
+        _preDeepCheck(items.length - 1);
+        _preDeepCheck(items.length - 2);
       }
+    } finally {
+      isLoadingMore.value = false;
     }
-    isLoadingMore.value = false;
   }
 
   Map<String, dynamic> getItemSummary(int index) {
@@ -271,7 +299,25 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     isVideoReady.value = false;
     videoWidth.value = null;
     videoHeight.value = null;
+
+    // Deep check (BGM/tags) BEFORE presenting. Blocked videos are skipped
+    // here instead of mid-play, so the user never sees a video being yanked.
+    final deepBlocked = await _ensureDeepChecked(index, timeout: const Duration(seconds: 3));
+    if (gen != _loadGeneration) return;
+    if (deepBlocked) {
+      _dbg('DEEP-SKIP index=$index');
+      if (index + 1 < items.length) {
+        jumpToPage?.call(index + 1);
+      } else {
+        loadMore();
+      }
+      return;
+    }
     _logWatched(items[index]);
+    // Immediately stop old video to clear stale frame
+    if (_players.isNotEmpty) {
+      try { _players.first.stop(); } catch (_) {}
+    }
 
     // Wait for previous load
     while (_isLoadingVideo) {
@@ -300,6 +346,12 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
 
       // Find which slot already has this index
       int? slot = _slotForIndex[index];
+      // Single-player mode: the only slot may have been overwritten by a
+      // later playVideoAt since, so a cached mapping does NOT guarantee the
+      // media in it belongs to this index. Always reload from scratch.
+      if (_players.length <= 1) {
+        slot = null;
+      }
 
       // If not loaded, find recyclable slot (furthest from current)
       if (slot == null) {
@@ -331,7 +383,6 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
         if (videoUrl == null) {
           if (index + 1 < items.length) {
             jumpToPage?.call(index + 1);
-            playVideoAt(index + 1);
           } else { loadMore(); }
           return;
         }
@@ -364,10 +415,29 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
 
       _currentSlot = slot;
       final p = _players[slot];
+
+      // Wire up playing listener BEFORE play() so the playing event is never
+      // missed. If we play() first and attach the listener after, the event
+      // can fire early and volume stays 0 forever (only pause+resume escapes,
+      // because it re-emits the event). An async setVolume(0) racing with
+      // setVolume(100) can also leave the volume at 0.
+      _playingSub?.cancel();
+      _playingSub = p.stream.playing.listen((playing) {
+        if (playing) {
+          isVideoReady.value = true;
+          p.setVolume(100);
+          WakelockPlus.enable();
+        }
+      });
+      // Wire up position/duration listeners to current player
+      p.stream.position.listen((pos) { position.value = pos.inMilliseconds.toDouble(); });
+      p.stream.duration.listen((dur) { duration.value = dur.inMilliseconds.toDouble(); });
+      // Immediately read current state (first video may have already emitted before listener attached)
+      position.value = p.state.position.inMilliseconds.toDouble();
+      duration.value = p.state.duration.inMilliseconds.toDouble();
+
+      // Now start playback (volume is already 0 from the pre-open setVolume(0))
       await p.play();
-      await p.setVolume(100);
-      await Future.delayed(const Duration(milliseconds: 100));
-      await p.setVolume(100);
 
       // Track video dimensions from VideoController rect
       final vc = _videoControllers[slot];
@@ -384,24 +454,6 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
           videoHeight.value = r.height.toInt();
         }
       });
-
-      // Wire up position/duration listeners to current player
-      _playingSub?.cancel();
-      _playingSub = p.stream.playing.listen((playing) {});
-      p.stream.position.listen((pos) { position.value = pos.inMilliseconds.toDouble(); });
-      p.stream.duration.listen((dur) { duration.value = dur.inMilliseconds.toDouble(); });
-      // Immediately read current state (first video may have already emitted before listener attached)
-      position.value = p.state.position.inMilliseconds.toDouble();
-      duration.value = p.state.duration.inMilliseconds.toDouble();
-
-      // Wait for player to actually start playing before hiding cover
-      _playingSub?.cancel();
-      _playingSub = p.stream.playing.listen((playing) {
-        if (playing) {
-          isVideoReady.value = true;
-          WakelockPlus.enable();
-        }
-      });
       // Poll position as fallback (Android stream may not fire on first entry)
       _positionTimer?.cancel();
       _positionTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
@@ -409,13 +461,20 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
           final ps = _players[_currentSlot].state;
           position.value = ps.position.inMilliseconds.toDouble();
           duration.value = ps.duration.inMilliseconds.toDouble();
+          // Fallback: if position is advancing, video is actually playing
+          if (!isVideoReady.value && ps.position.inMilliseconds > 500) {
+            isVideoReady.value = true;
+            _players[_currentSlot].setVolume(100);
+            WakelockPlus.enable();
+          }
         }
       });
       p.stream.position.listen((pos) { position.value = pos.inMilliseconds.toDouble(); });
       p.stream.duration.listen((dur) { duration.value = dur.inMilliseconds.toDouble(); });
       _fetchBlockSegments();
-      _checkVideoTags(index);
-      _checkBlockedMusic(index);
+      // Pre-check the next two videos in background so swiping is seamless
+      _preDeepCheck(index + 1);
+      _preDeepCheck(index + 2);
 
       // Pre-load next-next into the recycled slot
       _prefetchUrl(index + 1);
@@ -424,7 +483,12 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
       _prefetchUrl(index - 1);
 
       // Auto-preload adjacent media into free slots
-      _preloadAdjacent(index);
+      // NOTE: single-player mode — preloading would recycle the current
+      // playing slot and overwrite it with another video, causing title/video
+      // mismatch. Only meaningful with multiple player instances.
+      if (_players.length > 1) {
+        _preloadAdjacent(index);
+      }
     } catch (e) {
       _dbg('ERROR: $e');
     } finally {
@@ -489,9 +553,93 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
         final p = _players[freeSlot];
         await p.setVolume(0);
         await p.open(Media(mediaUrl), play: false);
+        _slotForIndex.removeWhere((k, v) => v == freeSlot);
         _slotForIndex[target] = freeSlot;
       } catch (_) {}
     }
+  }
+
+  /// Deep-check results: item index -> blocked (BGM or tag hit).
+  final Map<int, bool> _deepBlocked = {};
+  final Set<int> _deepChecking = {};
+  /// Bumped on every completed deep check so the view can rebuild.
+  final RxInt deepCheckVersion = 0.obs;
+
+  /// Synchronous query for the view: has this index finished deep check?
+  bool isDeepChecked(int index) => _deepBlocked.containsKey(index);
+
+  /// Check BGM + tags of items[index]. Returns true if blocked.
+  /// Cache hit returns immediately; in-flight waits; otherwise checks now.
+  /// Failures/timeouts are treated as pass (never block on uncertainty).
+  Future<bool> _ensureDeepChecked(int index, {Duration timeout = const Duration(seconds: 2)}) async {
+    if (index < 0 || index >= items.length) return false;
+    final cached = _deepBlocked[index];
+    if (cached != null) return cached;
+    if (_deepChecking.contains(index)) {
+      final deadline = DateTime.now().add(timeout);
+      while (_deepChecking.contains(index) && !_deepBlocked.containsKey(index)) {
+        await Future.delayed(const Duration(milliseconds: 50));
+        if (DateTime.now().isAfter(deadline)) return false;
+      }
+      return _deepBlocked[index] ?? false;
+    }
+    _deepChecking.add(index);
+    try {
+      final item = items[index];
+      final bvid = item.bvid;
+      final cid = item.cid;
+      bool blocked = false;
+      if (bvid != null && cid != null) {
+        final results = await Future.wait([
+          _isBlockedMusic(bvid, cid),
+          _hasBlockedTag(bvid, cid),
+        ]);
+        blocked = results[0] || results[1];
+      }
+      _deepBlocked[index] = blocked;
+      deepCheckVersion.value++;
+      if (blocked) _logDeepSkip(index);
+      return blocked;
+    } finally {
+      _deepChecking.remove(index);
+    }
+  }
+
+  /// Background pre-check (fire and forget).
+  void _preDeepCheck(int index) {
+    if (index < 0 || index >= items.length) return;
+    if (_deepBlocked.containsKey(index)) return;
+    _ensureDeepChecked(index);
+  }
+
+  /// Check whether video tags contain any news-style keyword.
+  Future<bool> _hasBlockedTag(String bvid, int cid) async {
+    try {
+      final result = await UserHttp.videoTags(bvid: bvid, cid: cid);
+      if (result is Success<List<dynamic>>) {
+        final tags = (result as Success<List<dynamic>>).response;
+        if (tags == null) return false;
+        for (final tag in tags) {
+          final tagName = tag.tagName ?? '';
+          for (final kw in _tagKeywords) {
+            if (tagName.contains(kw)) return true;
+          }
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  void _logDeepSkip(int index) {
+    try {
+      final item = items[index];
+      final now = DateTime.now().toIso8601String();
+      final ownerName = item.owner?.name ?? item.ownerName ?? '';
+      final title = item.title ?? '';
+      final bvid = item.bvid ?? '';
+      final file = File('/sdcard/Android/data/com.example.piliplus/files/short_video_watch.log');
+      file.writeAsStringSync('[$now] [DEEP_SKIP] $bvid | $ownerName | $title\n', mode: FileMode.append);
+    } catch (_) {}
   }
 
   void _checkBlockedMusic(int index) async {
@@ -506,7 +654,6 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
       _logWatched(item);
       if (index + 1 < items.length) {
         jumpToPage?.call(index + 1);
-        playVideoAt(index + 1);
       } else { loadMore(); }
     }
   }

@@ -55,9 +55,7 @@ android {
     }
 
     buildFeatures {
-        if (project.hasProperty("dev")) {
-            resValues = true
-        }
+        resValues = true
     }
 
     buildTypes {
@@ -80,6 +78,11 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
+            resValue(
+                type = "string",
+                name = "app_name",
+                value = "PiliPlus Debug",
+            )
         }
     }
 

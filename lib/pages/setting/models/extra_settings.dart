@@ -55,6 +55,12 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:material_ui/material_ui.dart' hide RefreshIndicator;
 
 List<SettingsModel> get extraSettings => [
+  NormalModel(
+    title: '短视频屏蔽管理',
+    subtitle: '管理短视频feed的本地屏蔽关键词',
+    leading: const Icon(Icons.filter_alt),
+    onTap: (context, setState) => Get.toNamed('/svFilter'),
+  ),
   if (PlatformUtils.isDesktop) ...[
     SwitchModel(
       title: '退出时最小化',

@@ -11,7 +11,7 @@ abstract class CommonListController<R, T> extends CommonController<R, T> {
   Rx<LoadingState<List<T>?>> loadingState =
       LoadingState<List<T>?>.loading().obs;
 
-  void handleListResponse(List<T> dataList) {}
+  void handleListResponse(List<T> dataList, {bool isRefresh = false}) {}
 
   List<T>? getDataList(R response) {
     return response as List<T>?;
@@ -37,7 +37,7 @@ abstract class CommonListController<R, T> extends CommonController<R, T> {
           isLoading = false;
           return;
         }
-        handleListResponse(dataList);
+        handleListResponse(dataList, isRefresh: isRefresh);
         if (isRefresh) {
           checkIsEnd(dataList.length);
           loadingState.value = Success(dataList);

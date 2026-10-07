@@ -5,50 +5,175 @@
     "scam_charity": "卖惨骗钱/募捐灰产，用病痛故事博赞引流到私域收款",
     "game_ad": "小游戏/手游买量广告，诱导点击下载",
     "giveaway_scam": "抽奖骗运费，以高价值奖品为诱饵私信收运费后拉黑",
-    "spam_upload": "批量上传号/自动发布的营销号"
+    "spam_upload": "批量上传号/自动发布的营销号",
+    "ai_product_ad": "AI 助手/编程工具类产品买量广告号"
   },
-
   "blockedBvids": [],
-
   "blockedOwnerMids": [
-    {"mid": 10330740, "reason": "观察者网，新闻号", "category": "news_media"},
-    {"mid": 3747563142384507, "reason": "抽奖骗运费（ROG显卡名义）", "category": "giveaway_scam"},
-    {"mid": 3706947180169679, "reason": "小游戏买量广告号", "category": "game_ad"}
+    {
+      "mid": 10330740,
+      "reason": "观察者网，新闻号",
+      "category": "news_media"
+    },
+    {
+      "mid": 3747563142384507,
+      "reason": "抽奖骗运费（ROG显卡名义）",
+      "category": "giveaway_scam"
+    },
+    {
+      "mid": 3706947180169679,
+      "reason": "小游戏买量广告号",
+      "category": "game_ad"
+    },
+    {
+      "mid": 3691012230744548,
+      "reason": "百度搭子DuMate二重身，AI产品买量广告号",
+      "category": "ai_product_ad"
+    }
   ],
-
   "newsKeywords": [
-    {"word": "日报", "reason": "新闻媒体后缀", "category": "news_media"},
-    {"word": "时报", "reason": "新闻媒体后缀", "category": "news_media"},
-    {"word": "快报", "reason": "新闻媒体后缀", "category": "news_media"},
-    {"word": "晨报", "reason": "新闻媒体后缀", "category": "news_media"},
-    {"word": "商报", "reason": "新闻媒体后缀", "category": "news_media"},
-    {"word": "都市报", "reason": "地方都市报", "category": "news_media"},
-    {"word": "都市频道", "reason": "电视台都市频道", "category": "news_media"},
-    {"word": "电视台", "reason": "传统电视台", "category": "news_media"},
-    {"word": "卫视", "reason": "省级卫视", "category": "news_media"},
-    {"word": "广播", "reason": "广播电台", "category": "news_media"},
-    {"word": "通讯社", "reason": "新闻通讯社", "category": "news_media"},
-    {"word": "融媒", "reason": "地方融媒体中心，新闻号常用", "category": "news_media"},
-    {"word": "新媒体", "reason": "传统媒体转短视频常用自称", "category": "news_media"}
+    {
+      "word": "日报",
+      "reason": "新闻媒体后缀",
+      "category": "news_media"
+    },
+    {
+      "word": "时报",
+      "reason": "新闻媒体后缀",
+      "category": "news_media"
+    },
+    {
+      "word": "快报",
+      "reason": "新闻媒体后缀",
+      "category": "news_media"
+    },
+    {
+      "word": "晨报",
+      "reason": "新闻媒体后缀",
+      "category": "news_media"
+    },
+    {
+      "word": "商报",
+      "reason": "新闻媒体后缀",
+      "category": "news_media"
+    },
+    {
+      "word": "都市报",
+      "reason": "地方都市报",
+      "category": "news_media"
+    },
+    {
+      "word": "都市频道",
+      "reason": "电视台都市频道",
+      "category": "news_media"
+    },
+    {
+      "word": "电视台",
+      "reason": "传统电视台",
+      "category": "news_media"
+    },
+    {
+      "word": "卫视",
+      "reason": "省级卫视",
+      "category": "news_media"
+    },
+    {
+      "word": "广播",
+      "reason": "广播电台",
+      "category": "news_media"
+    },
+    {
+      "word": "通讯社",
+      "reason": "新闻通讯社",
+      "category": "news_media"
+    },
+    {
+      "word": "融媒",
+      "reason": "地方融媒体中心，新闻号常用",
+      "category": "news_media"
+    },
+    {
+      "word": "新媒体",
+      "reason": "传统媒体转短视频常用自称",
+      "category": "news_media"
+    }
   ],
-
   "titleKeywords": [
-    {"word": "点开就玩", "reason": "小游戏广告话术", "category": "game_ad"},
-    {"word": "兑换口令", "reason": "游戏福利广告", "category": "game_ad"},
-    {"word": "口令码", "reason": "游戏福利广告", "category": "game_ad"},
-    {"word": "休闲刷怪", "reason": "小游戏广告", "category": "game_ad"},
-    {"word": "疯狂射击", "reason": "小游戏广告", "category": "game_ad"},
-    {"word": "爽到炸", "reason": "小游戏广告话术", "category": "game_ad"},
-    {"word": "最新视频已上线", "reason": "批量上传号自动标题", "category": "spam_upload"},
-    {"word": "救救", "reason": "卖惨话术开头", "category": "scam_charity"},
-    {"word": "救我", "reason": "卖惨话术", "category": "scam_charity"},
-    {"word": "恳请大家", "reason": "卖惨募捐话术", "category": "scam_charity"},
-    {"word": "恳请网友", "reason": "卖惨募捐话术", "category": "scam_charity"},
-    {"word": "免费送", "reason": "抽奖营销话术", "category": "giveaway_scam"},
-    {"word": "粉丝前", "reason": "抽奖营销号开头", "category": "giveaway_scam"},
-    {"word": "祝好人一生平安", "reason": "卖惨募捐结尾话术", "category": "scam_charity"},
-    {"word": "就有收益", "reason": "卖惨求赞话术", "category": "scam_charity"}
+    {
+      "word": "点开就玩",
+      "reason": "小游戏广告话术",
+      "category": "game_ad"
+    },
+    {
+      "word": "兑换口令",
+      "reason": "游戏福利广告",
+      "category": "game_ad"
+    },
+    {
+      "word": "口令码",
+      "reason": "游戏福利广告",
+      "category": "game_ad"
+    },
+    {
+      "word": "休闲刷怪",
+      "reason": "小游戏广告",
+      "category": "game_ad"
+    },
+    {
+      "word": "疯狂射击",
+      "reason": "小游戏广告",
+      "category": "game_ad"
+    },
+    {
+      "word": "爽到炸",
+      "reason": "小游戏广告话术",
+      "category": "game_ad"
+    },
+    {
+      "word": "最新视频已上线",
+      "reason": "批量上传号自动标题",
+      "category": "spam_upload"
+    },
+    {
+      "word": "救救",
+      "reason": "卖惨话术开头",
+      "category": "scam_charity"
+    },
+    {
+      "word": "救我",
+      "reason": "卖惨话术",
+      "category": "scam_charity"
+    },
+    {
+      "word": "恳请大家",
+      "reason": "卖惨募捐话术",
+      "category": "scam_charity"
+    },
+    {
+      "word": "恳请网友",
+      "reason": "卖惨募捐话术",
+      "category": "scam_charity"
+    },
+    {
+      "word": "免费送",
+      "reason": "抽奖营销话术",
+      "category": "giveaway_scam"
+    },
+    {
+      "word": "粉丝前",
+      "reason": "抽奖营销号开头",
+      "category": "giveaway_scam"
+    },
+    {
+      "word": "祝好人一生平安",
+      "reason": "卖惨募捐结尾话术",
+      "category": "scam_charity"
+    },
+    {
+      "word": "就有收益",
+      "reason": "卖惨求赞话术",
+      "category": "scam_charity"
+    }
   ],
-
   "blockedMusicKeywords": []
 }

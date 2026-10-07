@@ -1,7 +1,8 @@
+import 'package:PiliPlus/common/widgets/flutter/text_field/controller.dart' show RichTextEditingController;
+import 'package:PiliPlus/common/widgets/flutter/text_field/text_field.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import 'package:material_ui/material_ui.dart';
 
 class SvFilterSettings extends StatefulWidget {
   const SvFilterSettings({super.key});
@@ -10,108 +11,105 @@ class SvFilterSettings extends StatefulWidget {
   State<SvFilterSettings> createState() => _SvFilterSettingsState();
 }
 
-class _SvFilterSettingsState extends State<SvFilterSettings>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  static const _tabs = ['标题', 'UP主昵称', 'BGM'];
-  static const _keys = [
-    LocalCacheKey.svTitleKeywords,
-    LocalCacheKey.svNewsKeywords,
-    LocalCacheKey.svMusicKeywords,
-  ];
-
-  List<List<String>> _lists = [[], [], []];
+class _SvFilterSettingsState extends State<SvFilterSettings> {
+  final RichTextEditingController _inputController = RichTextEditingController();
+  List<String> _keywords = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    for (var i = 0; i < 3; i++) {
-      _lists[i] = List<String>.from(
-          GStorage.localCache.get(_keys[i], defaultValue: <String>[]));
-    }
+    _keywords = List<String>.from(
+        GStorage.localCache.get(LocalCacheKey.svTitleKeywords, defaultValue: <String>[]));
   }
 
-  void _save(int tab) {
-    GStorage.localCache.put(_keys[tab], _lists[tab]);
+  @override
+  void dispose() {
+    _inputController.dispose();
+    super.dispose();
   }
 
-  void _addKeyword(int tab) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('添加${_tabs[tab]}屏蔽词'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: '输入关键词'),
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              setState(() => _lists[tab].add(value.trim()));
-              _save(tab);
-            }
-            Get.back();
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                setState(() => _lists[tab].add(controller.text.trim()));
-                _save(tab);
-              }
-              Get.back();
-            },
-            child: const Text('添加'),
-          ),
-        ],
-      ),
-    );
+  void _add() {
+    final text = _inputController.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _keywords.add(text);
+      _inputController.clear();
+    });
+    GStorage.localCache.put(LocalCacheKey.svTitleKeywords, _keywords);
+  }
+
+  void _remove(String keyword) {
+    setState(() {
+      _keywords.remove(keyword);
+    });
+    GStorage.localCache.put(LocalCacheKey.svTitleKeywords, _keywords);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('短视频屏蔽管理')),
-      body: Column(
+      appBar: AppBar(title: const Text('屏蔽词管理')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          TabBar(
-            controller: _tabController,
-            tabs: _tabs.map((t) => Tab(text: t)).toList(),
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: List.generate(3, (tab) {
-                if (_lists[tab].isEmpty) {
-                  return const Center(child: Text('暂无屏蔽词'));
-                }
-                return ListView.builder(
-                  itemCount: _lists[tab].length,
-                  itemBuilder: (context, i) => ListTile(
-                    title: Text(_lists[tab][i]),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        setState(() => _lists[tab].removeAt(i));
-                        _save(tab);
-                      },
+          Row(
+            children: [
+              Expanded(
+                child: RichTextField(
+                  controller: _inputController,
+                  decoration: const InputDecoration(
+                    hintText: '输入标题关键词',
+                    filled: true,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      borderSide: BorderSide.none,
                     ),
                   ),
-                );
-              }),
-            ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _add(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Material(
+                color: Theme.of(context).colorScheme.primary,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _add,
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.add, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 12),
+          if (_keywords.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 48),
+              child: Center(child: Text('暂无屏蔽词')),
+            )
+          else
+            ..._keywords.map(
+              (k) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.block, size: 18, color: Theme.of(context).colorScheme.outline),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(k)),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => _remove(k),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () => _addKeyword(_tabController.index),
       ),
     );
   }

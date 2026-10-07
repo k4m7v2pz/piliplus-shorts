@@ -105,3 +105,9 @@ git merge origin/main
 - `videoControllers` 必须用 `RxMap`，否则 Obx 不 rebuild
 - Mac 端 incremental build 会丢失 media_kit 插件链接，必须 `flutter clean` 后重编
 - macOS Sandbox 下 `File()` 路径会被重定向到 `~/Library/Containers/com.example.piliplus/Data/`
+
+## 提交规范
+
+- 提交信息用 Conventional Commits（`feat:` / `fix:` / `docs:` / `chore:` 等），主题中文描述即可。
+- 末尾 trailer（空行隔开）用 `Co-Authored-By`，名字填写实际执行本次提交的模型/Agent，不知道则不写。
+- 本仓库公开，提交前确认无私钥/token/个人邮箱/VPS地址泄漏（`scripts/bash/check-sensitive.sh` 已配置 pre-push hook 自动检查）。

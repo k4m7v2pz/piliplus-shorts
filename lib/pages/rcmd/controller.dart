@@ -33,7 +33,7 @@ class RcmdController extends CommonListController {
   }
 
   @override
-  void handleListResponse(List dataList) {
+  void handleListResponse(List dataList, {bool isRefresh = false}) {
     if (enableSaveLastData && page == 0) {
       if (loadingState.value case Success(:final response)) {
         if (response != null && response.isNotEmpty) {

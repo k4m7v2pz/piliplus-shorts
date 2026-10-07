@@ -1,0 +1,59 @@
+#!/usr/bin/env rvs
+# build.rvs —— PiliPlus Shorts 一键构建
+#
+# 用法：rvs build.rvs
+# 功能：敏感检查 → 编Mac → 编Android → 装手机 → 重启Mac
+
+write-output "=== PiliPlus Shorts 一键构建 ==="
+write-output ""
+
+# ── Phase 1：敏感信息检查 ──
+write-output "[1/5] 敏感信息检查"
+git add -A
+git diff --cached --name-only | grep -iE '\.(pem|key|keystore)|id_rsa|credentials' && {
+  write-output "!!! 检测到敏感文件，终止"
+  exit 1
+}
+write-output "通过"
+write-output ""
+
+# ── Phase 2：构建 Mac ──
+write-output "[2/5] 构建 Mac"
+export https_proxy=http://127.0.0.1:7890
+export http_proxy=http://127.0.0.1:7890
+fvm flutter build macos --release
+if ($LASTEXITCODE -ne 0) {
+  write-output "!!! Mac 编译失败"
+  exit 1
+}
+mv -f "build/macos/Build/Products/Release/PiliPlus.app" "build/macos/Build/Products/Release/PiliPlus Shorts.app"
+write-output ""
+
+# ── Phase 3：构建 Android ──
+write-output "[3/5] 构建 Android"
+fvm flutter build apk --release
+if ($LASTEXITCODE -ne 0) {
+  write-output "!!! Android 编译失败"
+  exit 1
+}
+write-output ""
+
+# ── Phase 4：安装到手机 ──
+write-output "[4/5] 安装到手机"
+ADB_DEVICE=$(adb devices | grep "device$" | head -1 | awk '{print $1}')
+if [ -n "$ADB_DEVICE" ] {
+  adb -s "$ADB_DEVICE" install -r build/app/outputs/flutter-apk/app-release.apk
+  adb -s "$ADB_DEVICE" shell appops set com.example.piliplus android:write_settings allow
+  write-output "已安装到 $ADB_DEVICE"
+} else {
+  write-output "未发现 ADB 设备，跳过"
+}
+write-output ""
+
+# ── Phase 5：重启 Mac app ──
+write-output "[5/5] 重启 Mac app"
+pkill -9 -f PiliPlus
+sleep 1
+open "build/macos/Build/Products/Release/PiliPlus Shorts.app"
+write-output ""
+write-output "=== 完成 ==="

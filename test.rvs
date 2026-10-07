@@ -24,16 +24,12 @@ write-output ""
 # ═══════════════════════════════════════════════
 write-output "== Phase 2: flutter clean + build macos --release =="
 write-output ""
-export https_proxy=http://127.0.0.1:7890
-export http_proxy=http://127.0.0.1:7890
 # 必须 clean，否则 incremental build 会丢失 media_kit_video 原生插件链接
-fvm flutter clean
-fvm flutter pub get
-fvm flutter build macos --release
-if ($LASTEXITCODE -ne 0) {
-  write-output "!!! 编译失败，停止"
-  exit 1
-}
+# rvs 不实现 POSIX 内建 export；代理环境用 env "KEY=val" 注入（引号保护 =）
+# rvs 遇失败命令自动中止脚本，无需 $LASTEXITCODE 检查
+env "https_proxy=http://127.0.0.1:7890" "http_proxy=http://127.0.0.1:7890" fvm flutter clean
+env "https_proxy=http://127.0.0.1:7890" "http_proxy=http://127.0.0.1:7890" fvm flutter pub get
+env "https_proxy=http://127.0.0.1:7890" "http_proxy=http://127.0.0.1:7890" fvm flutter build macos --release
 write-output ""
 
 # ═══════════════════════════════════════════════

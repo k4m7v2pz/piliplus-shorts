@@ -14,7 +14,7 @@
 ## 快速编译
 
 ### 前置条件
-- Flutter SDK **3.47.6**（FVM 管理，路径 `~/fvm/versions/3.47.6`，以 `.fvmrc` 为准）
+- Flutter SDK **3.47.9**（FVM 管理，路径 `~/fvm/versions/3.47.9`，以 `.fvmrc` 为准）
 - Xcode 27 + CocoaPods
 - 走代理：`export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890`
 - git 全局代理：`git config --global http.proxy http://127.0.0.1:7890`
@@ -24,7 +24,7 @@
 PiliPlus 编译前必须给 Flutter SDK 和 material_ui 打补丁（暴露私有 API）：
 
 ```bash
-cd ~/fvm/versions/3.47.6
+cd ~/fvm/versions/3.47.9
 PILI=<仓库绝对路径>
 
 # Flutter SDK patches
@@ -42,14 +42,18 @@ done
 sed -i '' '/popGestureEnabled: true,/d' lib/src/scaffold.dart
 ```
 
-**注意**：`git apply` 对已打过补丁的文件会报错，忽略即可（用 `2>/dev/null`）。
+**注意**：
+- `git apply` 对已打过补丁的文件会报错，忽略即可（用 `2>/dev/null`）。
+- `lib/scripts/bottom_sheet_ios_piliplus.patch` 和 `lib/scripts/geetest_ios.patch` **不是 SDK 补丁**，
+  是打在本仓库源码上的（改了 `lib/pages/...` 和 `pubspec.yaml`），对 SDK 应用必然报 No such file，属正常。
+- 3.47.9 实测：SDK 补丁 26 个全部干净应用、material_ui 1.10.0 十个全部成功。
 
 ### 编译命令
 
 ```bash
 cd <仓库路径>
 export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890
-fvm use 3.47.6
+fvm use 3.47.9
 fvm flutter pub get
 
 # Mac

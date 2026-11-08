@@ -62,14 +62,11 @@ class MainController extends GetxController
   final enableMYBar = Pref.enableMYBar;
   final floatingNavBar = Pref.floatingNavBar;
   final useSideBar = Pref.useSideBar;
+  final hideSideBarLabel = Pref.hideSideBarLabel;
   final mainTabBarView = Pref.mainTabBarView;
   late final optTabletNav = Pref.optTabletNav;
 
   late bool directExitOnBack = Pref.directExitOnBack;
-  late bool showTrayIcon = Pref.showTrayIcon;
-  late bool minimizeOnExit = Pref.minimizeOnExit;
-  late bool pauseOnMinimize = Pref.pauseOnMinimize;
-  late bool isPlaying = false;
 
   static const _period = 5 * 60 * 1000;
   late int _lastSelectTime = 0;
@@ -316,12 +313,10 @@ class MainController extends GetxController
         EasyThrottle.throttle(
           'topOrRefresh',
           const Duration(milliseconds: 500),
-          () {
-            if (currentNav == NavigationBarType.home) {
-              homeController.onRefresh();
-            } else if (currentNav == NavigationBarType.dynamics) {
-              dynamicController.onRefresh();
-            }
+          () => switch (currentNav) {
+            .home => homeController.showRefresh(),
+            .dynamics => dynamicController.showRefresh(),
+            .mine => null,
           },
         );
       } else {
@@ -345,7 +340,7 @@ class MainController extends GetxController
     if (navigationBars[selectedIndex.value] == NavigationBarType.home &&
         homeController.tabs[homeController.tabController.index] ==
             HomeTabType.rcmd) {
-      homeController.onRefresh();
+      homeController.showRefresh();
       return true;
     }
     return false;

@@ -342,6 +342,17 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     };
   }
 
+  /// 屏幕物理宽度（px）。取不到时返回 null，调用方跳过尺寸校验。
+  double? _screenPhysicalWidth() {
+    try {
+      final view = WidgetsBinding.instance.platformDispatcher.implicitView;
+      final w = view?.physicalSize.width;
+      return (w != null && w > 0) ? w : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 延迟撤掉封面：播放已开始后再等一小段，并确认 VideoController 的
   /// 输出矩形已就绪（>1px，即 native 侧已完成 surface resize）。
   /// 这样用户永远看不到硬解首帧以错误尺寸/位置闪现的脏帧。
@@ -356,6 +367,26 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
           ? _videoControllers[slot].rect.value
           : null;
       var surfaceReady = r != null && r.width > 1 && r.height > 1;
+      // open 前快照的旧 rect（上一条视频残留）：open 后 rect 若仍等于该值，
+      // 说明 native 侧还没刷新，据此放行会让新视频首帧以旧尺寸上屏
+      // （上一条同为 16:9 时比例校验拦不住）。保留 800ms 观察期，之后
+      // rect 迟迟不变就交给比例/尺寸校验与兜底逻辑决定。
+      if (surfaceReady &&
+          _rectBeforeLoad != null &&
+          r == _rectBeforeLoad &&
+          DateTime.now().difference(startedAt).inMilliseconds < 800) {
+        surfaceReady = false;
+      }
+      // 尺寸下限：全屏短视频最终必然占满屏宽（横屏 letterbox 与竖屏适配
+      // 都是如此）。mpv 重建 vo 过程中 rect 可能短暂上报"比例正确但整体
+      // 缩小"的过渡值（实测 16:9 视频缩成约 1/5 大小贴在左中部），只查
+      // 比例拦不住，这里加屏宽占比校验。
+      if (surfaceReady && r != null) {
+        final screenW = _screenPhysicalWidth();
+        if (screenW != null && r.width < screenW * 0.85) {
+          surfaceReady = false;
+        }
+      }
       // rect 会经历一个 mpv 重建输出过程中的"错误中间值"（实测某 9:16 视频
       // 短暂上报约 0.26 的宽高比），用接口返回的真实宽高做交叉校验：
       // 比例对不上就视为未就绪，封面继续盖着，直到 rect 稳定为正确值。

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug 变体专属前景：正常 P 图标 + 右上角红色 DEBUG 斜角横幅 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_launcher_foreground" />
+    <item android:drawable="@mipmap/ic_launcher_debug_fg" />
+</layer-list>

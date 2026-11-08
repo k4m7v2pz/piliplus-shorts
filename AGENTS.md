@@ -9,7 +9,7 @@
 |--------|------|------|
 | `origin` | `https://github.com/bggRGjQaUbCoE/PiliPlus.git` | 上游，只读 |
 | `github-fork` | `git@github.com:k4m7v2pz/piliplus-shorts.git` | 主仓库（公开） |
-| ~~`atomgit`~~ | ~~`git@atomgit.com:k4m7v2pz/piliplus.git`~~ | 已归档，不再推送 |
+| ~~`atomgit`~~ | ~~`git@atomgit.com:k4m7v2pz/piliplus.git`~~ | 仓库已删除，remote 已移除（2026-11-08 确认） |
 
 ## 快速编译
 

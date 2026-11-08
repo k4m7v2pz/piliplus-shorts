@@ -147,7 +147,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                 child: Obx(() {
                   if (_c.isLoading.value && _c.items.isEmpty) {
                     return const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     );
                   }
                   if (_c.items.isEmpty) {
@@ -193,7 +193,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                       // Video layer that follows scroll offset for drag-following
                       Obx(() {
                         final hasC = _c.hasController.value;
-                        final ready = _c.isVideoReady.value;
+                        final ready = _c.videoReveal.value;
                         if (!hasC || !ready) return const SizedBox();
                         return Positioned.fill(
                           child: ValueListenableBuilder<double>(
@@ -229,7 +229,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                       }),
                       // Cover image - instant show when not ready, fade out when ready
                       Obx(() {
-                        final ready = _c.isVideoReady.value;
+                        final ready = _c.videoReveal.value;
                         _c.deepCheckVersion.value; // rebuild when a check finishes
                         if (!ready) {
                           // While deep check is pending, don't reveal the video
@@ -523,7 +523,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
             child: Obx(() {
               if (_c.isLoading.value && _c.items.isEmpty) {
                 return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 );
               }
               if (_c.items.isEmpty) {
@@ -566,7 +566,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
 
                   // 2. Video layer — centered with aspect ratio
                   // so letterbox areas show theme-colored background
-                  if (_c.hasController.value)
+                  if (_c.hasController.value && _c.videoReveal.value)
                     Positioned.fill(
                       child: Obx(() {
                         final w = _c.videoWidth.value;
@@ -619,7 +619,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                     Positioned.fill(
                       child: IgnorePointer(
                         child: Obx(() {
-                          final ready = _c.isVideoReady.value;
+                          final ready = _c.videoReveal.value;
                           return TweenAnimationBuilder<double>(
                             tween: Tween(begin: 1.0, end: ready ? 0.0 : 1.0),
                             duration: const Duration(milliseconds: 800),

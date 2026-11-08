@@ -49,6 +49,11 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   final RxBool isLoadingMore = false.obs;
   final RxInt currentIndex = 0.obs;
   final RxBool isVideoReady = false.obs;
+  // 视频层是否可以 revealed（封面撤掉）。isVideoReady 表示 mpv 已开始播放，
+  // 但 Android 硬解下 SurfaceTexture 还要经历一次 resize，首帧可能以错误
+  // 尺寸/位置闪现（缩小的画面闪一下）。videoReveal 在播放稳定、rect 正常
+  // 之后再置 true，让封面多盖住这几十毫秒的脏帧。
+  final RxBool videoReveal = false.obs;
   final RxBool hasStarted = false.obs;
   final RxBool hasController = false.obs;
   final RxDouble position = 0.0.obs;
@@ -68,6 +73,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   StreamSubscription? _playingSub;
   StreamSubscription? _bufferingSub;
   Timer? _positionTimer;
+  Timer? _revealTimer;
   StreamSubscription? _widthSub;
   StreamSubscription? _heightSub;
   final RxnInt videoWidth = RxnInt();
@@ -327,12 +333,35 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     };
   }
 
+  /// 延迟撤掉封面：播放已开始后再等一小段，并确认 VideoController 的
+  /// 输出矩形已就绪（>1px，即 native 侧已完成 surface resize）。
+  /// 这样用户永远看不到硬解首帧以错误尺寸/位置闪现的脏帧。
+  void _scheduleVideoReveal(int gen) {
+    _revealTimer?.cancel();
+    _revealTimer = Timer(const Duration(milliseconds: 350), () {
+      if (gen != _loadGeneration) return;
+      final slot = _currentSlot;
+      final r = (slot >= 0 && slot < _videoControllers.length)
+          ? _videoControllers[slot].rect.value
+          : null;
+      if (r != null && r.width > 1 && r.height > 1) {
+        videoReveal.value = true;
+      } else {
+        // rect 还没就绪，再等一轮（封面继续盖着，不会露出脏帧）
+        _revealTimer = Timer(const Duration(milliseconds: 300), () {
+          if (gen == _loadGeneration) videoReveal.value = true;
+        });
+      }
+    });
+  }
+
   Future<void> playVideoAt(int index) async {
     if (index < 0 || index >= items.length) return;
     _loadGeneration++;
     final gen = _loadGeneration;
     currentIndex.value = index;
     isVideoReady.value = false;
+    videoReveal.value = false;
     videoWidth.value = null;
     videoHeight.value = null;
 
@@ -463,6 +492,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
           isVideoReady.value = true;
           p.setVolume(100);
           WakelockPlus.enable();
+          _scheduleVideoReveal(gen);
         }
       });
       // Wire up position/duration listeners to current player
@@ -502,6 +532,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
             isVideoReady.value = true;
             _players[_currentSlot].setVolume(100);
             WakelockPlus.enable();
+            _scheduleVideoReveal(gen);
           }
         }
       });
@@ -855,6 +886,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     _bufferingSub?.cancel();
     _widthSub?.cancel();
     _heightSub?.cancel();
+    _revealTimer?.cancel();
     for (final p in _players) { p.dispose(); }
     super.onClose();
   }

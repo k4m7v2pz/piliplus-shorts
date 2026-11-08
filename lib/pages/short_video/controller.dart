@@ -76,6 +76,9 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   Timer? _revealTimer;
   /// surface（SurfaceTexture buffer）被 resize 到视频真实尺寸的时刻。
   DateTime? _surfaceReadyAt;
+  /// open 之前 slot 的 rect（上一条视频的尺寸）。凡与其相同的 rect
+  /// 都视为旧视频残留，不采纳、不算 surface 就绪。
+  Rect? _rectBeforeLoad;
   /// surface 就绪后再等多久才允许视频上屏（跨 2~3 帧渲染）。
   static const int _revealSettleMs = 180;
   /// 兜底上限：无论 rect 是否就绪，播放开始这么久后一律放行。
@@ -352,7 +355,23 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
       final r = (slot >= 0 && slot < _videoControllers.length)
           ? _videoControllers[slot].rect.value
           : null;
-      final surfaceReady = r != null && r.width > 1 && r.height > 1;
+      var surfaceReady = r != null && r.width > 1 && r.height > 1;
+      // rect 会经历一个 mpv 重建输出过程中的"错误中间值"（实测某 9:16 视频
+      // 短暂上报约 0.26 的宽高比），用接口返回的真实宽高做交叉校验：
+      // 比例对不上就视为未就绪，封面继续盖着，直到 rect 稳定为正确值。
+      if (surfaceReady &&
+          currentIndex.value >= 0 &&
+          currentIndex.value < items.length) {
+        final item = items[currentIndex.value];
+        if (item.videoWidth != null &&
+            item.videoHeight != null &&
+            item.videoWidth! > 0 &&
+            item.videoHeight! > 0) {
+          final dar = item.videoWidth! / item.videoHeight!;
+          final rr = r!.width / r.height;
+          if ((rr - dar).abs() / dar > 0.05) surfaceReady = false;
+        }
+      }
       if (!surfaceReady) {
         _surfaceReadyAt = null;
       } else {
@@ -448,6 +467,10 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
       // If not loaded, find recyclable slot (furthest from current)
       if (slot == null) {
         slot = _findRecyclableSlot(index);
+        // 记录 open 之前该 slot 的 rect：open 后 rect 仍是这个旧值时，
+        // 说明它属于上一条视频，绝不能当作当前视频的尺寸（否则布局
+        // 会用旧视频的宽高比，新视频首帧被塞进错误比例的框里）。
+        _rectBeforeLoad = _videoControllers[slot].rect.value;
         final item = items[index];
         if (item.cid == null || item.bvid == null) return;
 

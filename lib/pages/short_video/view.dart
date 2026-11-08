@@ -232,8 +232,11 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                         final ready = _c.videoReveal.value;
                         _c.deepCheckVersion.value; // rebuild when a check finishes
                         if (!ready) {
-                          // While deep check is pending, don't reveal the video
-                          if (!_c.isDeepChecked(_c.currentIndex.value)) {
+                          // 深检期间不再切转圈：spinner↔封面来回切换会让指示器
+                          // 元素重建，动画从 0 重新转，看起来像"转了三次"。
+                          // 有封面就直接盖封面（同样不提前露出视频）。
+                          final hasCover = currentItem?.cover != null;
+                          if (!hasCover) {
                             return const Center(
                               child: CircularProgressIndicator(strokeWidth: 2),
                             );
@@ -242,7 +245,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                           return Positioned.fill(
                             child: Container(
                               color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.black : const Color(0xFFFDFBFF),
-                              child: (currentItem?.cover != null && _c.currentIndex.value > 0)
+                              child: (currentItem?.cover != null)
                                 ? Obx(() {
                                     final w = _c.videoWidth.value;
                                     final h = _c.videoHeight.value;
@@ -264,7 +267,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                         }
                         return TweenAnimationBuilder<double>(
                           tween: Tween(begin: 1.0, end: 0.0),
-                          duration: const Duration(milliseconds: 200),
+                          duration: const Duration(milliseconds: 260),
                           builder: (context, opacity, child) {
                             if (opacity <= 0) return const SizedBox();
                             return Positioned.fill(
@@ -274,7 +277,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                               ),
                             );
                           },
-                          child: (currentItem?.cover != null && _c.currentIndex.value > 0)
+                          child: (currentItem?.cover != null)
                             ? Obx(() {
                                 final w = _c.videoWidth.value;
                                 final h = _c.videoHeight.value;
@@ -601,7 +604,9 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                   Obx(() {
                     _c.deepCheckVersion.value;
                     final idx = _c.currentIndex.value;
-                    if (idx >= 0 && idx < _c.items.length && !_c.isDeepChecked(idx)) {
+                    // 有封面时不用转圈遮：直接盖封面即可，避免指示器重建重启动画
+                    final hasCover = currentItem?.cover != null;
+                    if (!hasCover && idx >= 0 && idx < _c.items.length && !_c.isDeepChecked(idx)) {
                       return Positioned.fill(
                         child: Container(
                           color: MediaQuery.platformBrightnessOf(context) == Brightness.dark ? Colors.black : const Color(0xFFFDFBFF),
@@ -615,7 +620,7 @@ class _ShortVideoPageState extends State<ShortVideoPage> {
                   }),
 
                   // Cover image overlay - hide mpv gray flash (skip first video, unknown ratio)
-                  if (currentItem?.cover != null && _c.currentIndex.value > 0)
+                  if (currentItem?.cover != null)
                     Positioned.fill(
                       child: IgnorePointer(
                         child: Obx(() {

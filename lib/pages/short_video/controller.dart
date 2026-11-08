@@ -74,6 +74,12 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   StreamSubscription? _bufferingSub;
   Timer? _positionTimer;
   Timer? _revealTimer;
+  /// surface（SurfaceTexture buffer）被 resize 到视频真实尺寸的时刻。
+  DateTime? _surfaceReadyAt;
+  /// surface 就绪后再等多久才允许视频上屏（跨 2~3 帧渲染）。
+  static const int _revealSettleMs = 180;
+  /// 兜底上限：无论 rect 是否就绪，播放开始这么久后一律放行。
+  static const int _revealMaxWaitMs = 2500;
   StreamSubscription? _widthSub;
   StreamSubscription? _heightSub;
   final RxnInt videoWidth = RxnInt();
@@ -338,21 +344,41 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
   /// 这样用户永远看不到硬解首帧以错误尺寸/位置闪现的脏帧。
   void _scheduleVideoReveal(int gen) {
     _revealTimer?.cancel();
-    _revealTimer = Timer(const Duration(milliseconds: 350), () {
+    final startedAt = DateTime.now();
+    void attempt() {
       if (gen != _loadGeneration) return;
+      if (videoReveal.value) return;
       final slot = _currentSlot;
       final r = (slot >= 0 && slot < _videoControllers.length)
           ? _videoControllers[slot].rect.value
           : null;
-      if (r != null && r.width > 1 && r.height > 1) {
-        videoReveal.value = true;
+      final surfaceReady = r != null && r.width > 1 && r.height > 1;
+      if (!surfaceReady) {
+        _surfaceReadyAt = null;
       } else {
-        // rect 还没就绪，再等一轮（封面继续盖着，不会露出脏帧）
-        _revealTimer = Timer(const Duration(milliseconds: 300), () {
-          if (gen == _loadGeneration) videoReveal.value = true;
-        });
+        _surfaceReadyAt ??= DateTime.now();
       }
-    });
+      // surface 被 resize 到视频真实尺寸之后，mpv 还要在新 vo 上真正渲染出
+      // 至少一帧，Flutter 上屏才会拿到正确尺寸的 buffer。在此之前上屏拿到
+      // 的是 resize 前/被 clear 的旧 buffer，会被 Texture 拉伸成畸形画面
+      // （9:16 压成 3:16、或缩小挤在角落）。所以从 surface 就绪起再等
+      // _revealSettleMs，跨过 2~3 帧再撤封面。
+      final settleMs = _surfaceReadyAt == null
+          ? 0
+          : DateTime.now().difference(_surfaceReadyAt!).inMilliseconds;
+      if (surfaceReady && settleMs >= _revealSettleMs) {
+        videoReveal.value = true;
+        return;
+      }
+      // 兜底：极端情况（rect 迟迟不来）也不能让封面无限盖着
+      if (DateTime.now().difference(startedAt).inMilliseconds >= _revealMaxWaitMs) {
+        videoReveal.value = true;
+        return;
+      }
+      _revealTimer = Timer(const Duration(milliseconds: 50), attempt);
+    }
+
+    attempt();
   }
 
   Future<void> playVideoAt(int index) async {
@@ -362,6 +388,7 @@ class ShortVideoController extends GetxController with ScrollOrRefreshMixin {
     currentIndex.value = index;
     isVideoReady.value = false;
     videoReveal.value = false;
+    _surfaceReadyAt = null;
     videoWidth.value = null;
     videoHeight.value = null;
 

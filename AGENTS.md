@@ -14,7 +14,7 @@
 ## 快速编译
 
 ### 前置条件
-- Flutter SDK **3.47.5**（FVM 管理，路径 `~/fvm/versions/3.47.5`）
+- Flutter SDK **3.47.6**（FVM 管理，路径 `~/fvm/versions/3.47.6`，以 `.fvmrc` 为准）
 - Xcode 27 + CocoaPods
 - 走代理：`export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890`
 - git 全局代理：`git config --global http.proxy http://127.0.0.1:7890`
@@ -24,7 +24,7 @@
 PiliPlus 编译前必须给 Flutter SDK 和 material_ui 打补丁（暴露私有 API）：
 
 ```bash
-cd ~/fvm/versions/3.47.5
+cd ~/fvm/versions/3.47.6
 PILI=<仓库绝对路径>
 
 # Flutter SDK patches
@@ -49,7 +49,7 @@ sed -i '' '/popGestureEnabled: true,/d' lib/src/scaffold.dart
 ```bash
 cd <仓库路径>
 export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890
-fvm use 3.47.5
+fvm use 3.47.6
 fvm flutter pub get
 
 # Mac
@@ -63,9 +63,23 @@ fvm flutter build apk --release
 
 ### Android 安装后必做
 ```bash
-adb -s <设备地址> install -r build/app/outputs/flutter-apk/app-release.apk
-adb -s <设备地址> shell appops set com.example.piliplus android:write_settings allow
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+adb shell appops set com.example.piliplus android:write_settings allow
+adb shell dumpsys package com.example.piliplus.debug | grep versionCode   # 验版本真的换了
 ```
+
+## 真机与双包（铁律）
+
+- 设备：Redmi Turbo 3（peridot / Android 16 / 1220×2712 / density 480）。
+- **双包并存**，别搞混：
+  - `com.example.piliplus` = 正式版（桌面图标，载着用户账号和全部设置）
+  - `com.example.piliplus.debug` = 测试版（抽屉图标，app 名 "PiliPlus Debug"）
+- **正式包绝不可卸载**（用户明确要求，卸载会丢账号与已调设置）；升级一律 `adb install -r`。
+- **versionCode 铁律**：每次真机测试前递增 `pubspec.yaml` 的 `version:`（如 `2.1.6+11` → `+12`）。
+  HyperOS 上相同 versionCode 的 `install -r` 会报 Success 但旧进程/旧代码继续跑，
+  装完必须用 `dumpsys package ... | grep versionCode` 核对。
+- **不要擅自 `adb exec-out screencap`**：用户常在语音输入+随手测试，突然截屏会抓到无关画面。
+  先把已完成的工作汇报完 → 说明需要他进入哪个页面 → 得到同意再截图。
 
 ## ADB 连接
 
@@ -73,6 +87,18 @@ adb -s <设备地址> shell appops set com.example.piliplus android:write_settin
 - mDNS 地址：`adb-da0fda92-Eo7NE1._adb-tls-connect._tcp`
 - **VPN 开着时 ADB 无法连接**（无线调试绑定到 TUN 接口），需关 VPN 或用 USB 线
 - mDNS 解析失败时，用无线调试页面显示的 IP 直连：`adb connect 192.168.x.x:port`
+
+## 构建脚本（rvs 26.9.23）
+
+- `test.rvs` — Mac 端：clean + build macos --release + 启动。`rvs test.rvs`
+- `build.rvs` — 全量：敏感检查 → Mac → Android → 装手机 → 重启 Mac app。`rvs build.rvs`
+- rvs 不实现 POSIX 内建，脚本里必须遵守：
+  - 代理用 `env "https_proxy=..." "http_proxy=..." <命令>` 注入，**不要 `export`**
+  - **不要 `$VAR` 赋值、`$(...)` 命令替换**（直接 Parse error）
+  - 条件只认 `if (<命令>)`，按退出码判真假（例：`if (adb get-state) { ... }`）
+  - 遇失败命令自动中止，**不需要 `$LASTEXITCODE`**
+  - `mv` 是 rvs 内置别名，不认 `-f`，要带参数就用 `/bin/mv`
+- 改完脚本先用 `rvs --dry-run build.rvs` 验语法，别直接全量跑。
 
 ## 合并上游
 
@@ -111,3 +137,10 @@ git merge origin/main
 - 提交信息用 Conventional Commits（`feat:` / `fix:` / `docs:` / `chore:` 等），主题中文描述即可。
 - 末尾 trailer（空行隔开）用 `Co-Authored-By`，名字填写实际执行本次提交的模型/Agent，不知道则不写。
 - 本仓库公开，提交前确认无私钥/token/个人邮箱/VPS地址泄漏（`scripts/bash/check-sensitive.sh` 已配置 pre-push hook 自动检查）。
+
+## 推送政策
+
+- **本仓库即改即推，不需要用户批准**（用户已明确授权）：改完 → 构建验证 → commit → `git push github-fork main`。
+- 例外：**其他仓库/项目的外发（PR、issue、评论、邮件）仍须用户明确批准**，不要类推。
+- 临时文件、交接文档、笔记一律放 `/private/tmp/`，不要进仓库（避免被误 `git add`）。
+

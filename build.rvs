@@ -1,8 +1,18 @@
 #!/usr/bin/env rvs
-# build.rvs —— PiliPlus Shorts 一键构建
+# build.rvs —— PiliPlus Shorts 一键构建（适配 rvs 26.9.23）
 #
-# 用法：rvs build.rvs
-# 功能：敏感检查 → 编Mac → 编Android → 装手机 → 重启Mac
+# 用法：rvs build.rvs（在仓库根目录执行）
+# 流程：敏感检查 → 编 Mac → 编 Android → 装手机 → 重启 Mac app
+#
+# rvs 语法约束（踩过的坑，别改回去）：
+#   - 不支持 POSIX 内建：export / $VAR 赋值 / $(...) 命令替换 都会 Parse error
+#     代理统一用 `env "KEY=val" 命令` 注入（引号保护 `=`）
+#   - 条件分支只认 `if (<命令>)`，按退出码判真假；没有变量可用
+#   - 遇失败命令自动中止脚本，不需要 $LASTEXITCODE 检查
+#
+# 前置条件：
+#   - Phase 4 需要手机已 `adb connect` 且 VPN 已关；没设备时自动跳过装包
+#   - flutter clean 过的话先按 AGENTS.md「打补丁」重打 SDK 补丁
 
 write-output "=== PiliPlus Shorts 一键构建 ==="
 write-output ""
@@ -10,50 +20,40 @@ write-output ""
 # ── Phase 1：敏感信息检查 ──
 write-output "[1/5] 敏感信息检查"
 git add -A
-git diff --cached --name-only | grep -iE '\.(pem|key|keystore)|id_rsa|credentials' && {
-  write-output "!!! 检测到敏感文件，终止"
-  exit 1
-}
+bash scripts/bash/check-sensitive.sh --push
 write-output "通过"
 write-output ""
 
 # ── Phase 2：构建 Mac ──
 write-output "[2/5] 构建 Mac"
-export https_proxy=http://127.0.0.1:7890
-export http_proxy=http://127.0.0.1:7890
-fvm flutter build macos --release
-if ($LASTEXITCODE -ne 0) {
-  write-output "!!! Mac 编译失败"
-  exit 1
-}
-mv -f "build/macos/Build/Products/Release/PiliPlus.app" "build/macos/Build/Products/Release/PiliPlus Shorts.app"
+env "https_proxy=http://127.0.0.1:7890" "http_proxy=http://127.0.0.1:7890" fvm flutter build macos --release
+# 用 /bin/mv 绕过 rvs 的 move-item 别名（rvs 自带 mv 不认 -f）
+/bin/mv -f "build/macos/Build/Products/Release/PiliPlus.app" "build/macos/Build/Products/Release/PiliPlus Shorts.app"
 write-output ""
 
 # ── Phase 3：构建 Android ──
 write-output "[3/5] 构建 Android"
-fvm flutter build apk --release
-if ($LASTEXITCODE -ne 0) {
-  write-output "!!! Android 编译失败"
-  exit 1
-}
+env "https_proxy=http://127.0.0.1:7890" "http_proxy=http://127.0.0.1:7890" fvm flutter build apk --release
 write-output ""
 
 # ── Phase 4：安装到手机 ──
+# 正式包只可 install -r 升级，绝不可卸载（卸载会丢账号与已调设置）
 write-output "[4/5] 安装到手机"
-ADB_DEVICE=$(adb devices | grep "device$" | head -1 | awk '{print $1}')
-if [ -n "$ADB_DEVICE" ] {
-  adb -s "$ADB_DEVICE" install -r build/app/outputs/flutter-apk/app-release.apk
-  adb -s "$ADB_DEVICE" shell appops set com.example.piliplus android:write_settings allow
-  write-output "已安装到 $ADB_DEVICE"
+if (adb get-state) {
+  adb install -r build/app/outputs/flutter-apk/app-release.apk
+  adb shell appops set com.example.piliplus android:write_settings allow
+  write-output "已安装（记得核对 versionCode 已递增）"
 } else {
-  write-output "未发现 ADB 设备，跳过"
+  write-output "未发现 ADB 设备，跳过装包"
 }
 write-output ""
 
 # ── Phase 5：重启 Mac app ──
 write-output "[5/5] 重启 Mac app"
-pkill -9 -f PiliPlus
-sleep 1
+# pkill 没匹配到进程时退出码非 0，包在 if 里免得中止脚本
+if (pkill -9 -f PiliPlus) {
+  sleep 1
+}
 open "build/macos/Build/Products/Release/PiliPlus Shorts.app"
 write-output ""
 write-output "=== 完成 ==="

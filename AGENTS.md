@@ -160,3 +160,9 @@ git merge origin/main
 - 例外：**其他仓库/项目的外发（PR、issue、评论、邮件）仍须用户明确批准**，不要类推。
 - 临时文件、交接文档、笔记一律放 `/private/tmp/`，不要进仓库（避免被误 `git add`）。
 
+
+## macOS 构建坑（2026-11-25 实测，本机 macOS 27 / Xcode 27.2）
+- 本机 `sandbox-exec` 被系统禁用（`sandbox_apply: Operation not permitted`），xcodebuild 的 SPM 解析必挂：已从 pbxproj 剥除全部 SPM 引用（备份 /tmp/pbxproj.bak），构建走纯 CocoaPods。**勿再对 macos/ 执行 SPM 迁移**；`flutter config --enable-swift-package-manager` 需保持关闭。
+- `flutter build macos` 必须在非沙箱 shell 跑（WorkBuddy 沙箱会拦 xcodebuild/pod 内部子进程）。
+- pod install 必须带代理（`https_proxy=http://127.0.0.1:7890`）：media_kit_video 的 podspec 安装时会 curl 下载 mpv 头文件到 Headers/，沙箱内静默失败 → Swift 报 "cannot find mpv_* in scope"；修法：手动 `make -C ../common/darwin HEADERS_DESTDIR="$PWD/Headers"`（在 .symlinks/plugins/media_kit_video/macos 下），然后重跑 pod install（头文件 glob 在 install 时评估）。
+- media_kit_libs_macos_video 的 `Frameworks/.symlinks/mpv/macos -> Mpv.xcframework/macos-arm64_x86_64` 符号链接若为空需手动 `ln -sfn` 补，否则链接期 "framework 'Mpv' not found"。

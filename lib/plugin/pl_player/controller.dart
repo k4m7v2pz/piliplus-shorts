@@ -1226,10 +1226,28 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
     if (repeat) {
       await seekTo(Duration.zero);
     }
+    final pausedAt = _pausedAt;
+    _pausedAt = null;
 
     await _videoPlayerController?.play();
 
     audioSessionHandler?.setActive(true);
+
+    // Android：暂停过久（含缓冲卡住后手动恢复）后恢复播放时，mpv 音频
+    // 输出能重启但视频渲染链路可能停摆（画面定格、声音照播），seek 到
+    // 当前位置强制重新出帧。阈值 3s：快速双击暂停/恢复不触发，避免
+    // 多余的 seek；延迟 300ms 确认仍在播放中再执行。
+    if (Platform.isAndroid &&
+        !repeat &&
+        pausedAt != null &&
+        DateTime.now().difference(pausedAt).inSeconds >= 3) {
+      final vp = _videoPlayerController;
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (vp != null && vp.state.playing) {
+          vp.seek(vp.state.position);
+        }
+      });
+    }
 
     playerStatus = .playing;
   }
@@ -1237,6 +1255,7 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   /// 暂停播放
   Future<void> pause({bool notify = true, bool isInterrupt = false}) async {
     await _videoPlayerController?.pause();
+    _pausedAt = DateTime.now();
     playerStatus = .paused;
 
     // 主动暂停时让出音频焦点
@@ -1246,6 +1265,10 @@ class PlPlayerController with BlockConfigMixin, AudioNormalizationMixin {
   }
 
   bool tripling = false;
+
+  /// 最近一次暂停的时刻（含缓冲卡住后的暂停），用于恢复播放时判断
+  /// 是否需要强制视频输出重启（见 play() 中的 seek 刷新逻辑）。
+  DateTime? _pausedAt;
 
   /// 隐藏控制条
   void hideTaskControls() {

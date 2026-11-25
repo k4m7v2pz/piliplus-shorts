@@ -359,6 +359,7 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
       // 回前台时 seek 到当前位置强制 mpv 重新出帧；短暂切走（<5s）不处理，
       // 避免对正常快速切换造成多余的一下 seek。
       final isBackground = const <AppLifecycleState>[
+        .inactive,
         .paused,
         .hidden,
         .detached,

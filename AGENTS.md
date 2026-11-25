@@ -104,6 +104,18 @@ adb shell dumpsys package com.example.piliplus.debug | grep versionCode   # 验�
   - `mv` 是 rvs 内置别名，不认 `-f`，要带参数就用 `/bin/mv`
 - 改完脚本先用 `rvs --dry-run build.rvs` 验语法，别直接全量跑。
 
+## 无头模拟器验证（默认验证通道）
+
+**验证改动一律走模拟器，不碰真机**；真机只在最后人工验收时用一次，由用户自己操作/点确认（2026-11-25 用户定，来源 rule-talk 项目实测手册）。
+
+- 脚本（拷自 rule-talk，AVD=`pili-test`、端口 5554）：`scripts/emu`（start/stop/status）、`scripts/sim`（adb 包装+续命）、`scripts/run_emulator.sh`、`scripts/idle-watch.sh`（闲置 1h 自动关机）。
+- **起机不要用 run_emulator.sh 直接后台跑**：它内部 `&` 起的模拟器会被工具 shell 退出连带杀掉。让 `~/Library/Android/sdk/emulator/emulator -avd pili-test -no-window ... -http-proxy http://127.0.0.1:7890 -dns-server 223.5.5.5,119.29.29.29` 自己作为长驻后台任务跑。
+- 模拟器无系统 DNS（`Name resolution will be disabled`），**必须**带 `-http-proxy`（走宿主 7890）和 `-dns-server`，否则 bilibili API 全部 connection timeout。
+- `avdmanager` 用 SDK 自带的 `~/Library/Android/sdk/cmdline-tools/latest/bin/avdmanager` 并先 `export ANDROID_SDK_ROOT`；homebrew 版会报 "Package path is not valid"。
+- 本机 bash 3.2 会把 `$VAR。`（紧跟全角标点）整个吞进变量名报 unbound variable——脚本里一律写 `${VAR}`（rule-talk 交接手册坑表，已在 run_emulator.sh 实际踩中）。
+- 模拟器局限：软渲染 GPU + 切后台音频整个停摆，**复现不了真机"后台声音照播画面定格"类问题**；这类问题只能真机验收。预置设置项可用 `adb push` + `run-as com.example.piliplus.debug cp` 写 `shared_prefs/FlutterSharedPreferences.xml`（key 前缀 `flutter.`）。
+- Flutter 的 `uiautomator dump` 拿不到控件文本，验证靠截图 + 按分辨率算坐标 `input tap`；首帧黑屏 2–4 秒属正常。
+
 ## 合并上游
 
 ```bash

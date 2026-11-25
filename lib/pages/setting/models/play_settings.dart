@@ -208,6 +208,7 @@ List<SettingsModel> get playSettings => [
   ),
   const SwitchModel(
     title: '自动跳转上次观看的分P',
+    subtitle: '打开多P视频时自动定位到上次观看的分P并恢复进度，无需手动点击提示',
     leading: Icon(Icons.local_parking),
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,

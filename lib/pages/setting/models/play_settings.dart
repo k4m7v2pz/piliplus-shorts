@@ -207,7 +207,7 @@ List<SettingsModel> get playSettings => [
     defaultVal: true,
   ),
   const SwitchModel(
-    title: '显示继续播放分P提示',
+    title: '自动跳转上次观看的分P',
     leading: Icon(Icons.local_parking),
     setKey: SettingBoxKey.continuePlayingPart,
     defaultVal: true,

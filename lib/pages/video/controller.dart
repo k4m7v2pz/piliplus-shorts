@@ -1196,7 +1196,17 @@ class VideoDetailController extends GetxController
             if (pages != null && pages.length > 1) {
               final index = pages.indexWhere((item) => item.cid == lastCid);
               if (index != -1) {
-                onAddItem(index);
+                // 直接自动跳到上次观看的分 P（对齐官方 App 行为）。上游
+                // 原本是左下角"上次看到第N P，点击跳转"提示，4 秒即被
+                // _skipTimer 自动移除，用户来不及点就错过。
+                // 本 P 的播放进度由 watchProgress 在播放器初始化时恢复。
+                try {
+                  ugcIntroCtr.onChangeEpisode(pages[index]);
+                  SmartDialog.showToast('已自动跳至上次观看的第${index + 1}P');
+                } catch (_) {
+                  // 跳转失败则退回点击提示
+                  onAddItem(index);
+                }
               }
             }
           } catch (_) {}

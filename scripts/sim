@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# 对模拟器的所有操作都走这里：原样转发给 adb，顺便把"最后使用时间"刷新一下。
+# 模拟器是空闲超时自动关机的（见 run_emulator.sh），刷新全靠这一句 touch，
+# 所以别绕过这个脚本直接敲 adb，否则模拟器会以为你一直没在用它。
+#
+#   scripts/sim install -r app.apk
+#   scripts/sim shell am start -n com.echo.app/.MainActivity
+#   scripts/sim exec-out screencap -p > shot.png
+#
+# 换端口：SIM_DEV=emulator-5556 scripts/sim ...
+set -uo pipefail
+DEV="${SIM_DEV:-emulator-5554}"
+STAMP="${TMPDIR:-/tmp}/pili-emulator-${DEV##*-}.lastuse"
+adb -s "$DEV" "$@"
+rc=$?
+touch "$STAMP"
+exit $rc

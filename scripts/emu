@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# 模拟器唯一入口：起机、关机、看状态、跑 adb。
+#
+#   scripts/emu start            # 起机（默认闲置 3600s 自动关）
+#   scripts/emu start 7200       # 这次闲置两小时才关
+#   scripts/emu stop             # 立刻关机
+#   scripts/emu status           # 在线？开机完成？闲置多久？还剩多久？
+#   scripts/emu adb shell am start -n com.echo.app/.MainActivity
+#   scripts/emu adb exec-out screencap -p > shot.png
+#
+# 这套东西是给 agent 用的自动化验证通道：读控件树、截图、装包，
+# 都不碰真机。真机只在最后验收时碰一次。
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DEV="${SIM_DEV:-emulator-5554}"
+PORT="${DEV##*-}"
+STAMP="${TMPDIR:-/tmp}/pili-emulator-$PORT.lastuse"
+LIFE="${TMPDIR:-/tmp}/pili-emulator-$PORT.lifetime"
+LOG="${TMPDIR:-/tmp}/pili-emulator-$PORT.idle.log"
+
+online() { adb devices 2>/dev/null | awk '{print $1}' | grep -qx "$DEV"; }
+
+case "${1:-status}" in
+start)
+    export LIFETIME="${2:-3600}"
+    exec "$ROOT/scripts/run_emulator.sh"
+    ;;
+stop)
+    if online; then
+        adb -s "$DEV" emu kill >/dev/null 2>&1
+        for _ in $(seq 1 15); do online || break; sleep 1; done
+        online && { echo "没能关掉 $DEV" >&2; exit 1; }
+        echo "已关机：$DEV"
+    else
+        echo "$DEV 本来就没在线"
+    fi
+    ;;
+status)
+    if ! pgrep -f "avd ${AVD_NAME:-pili-test}" >/dev/null 2>&1; then
+        echo "进程：无（没起机）"
+        exit 0
+    fi
+    echo "进程：$(pgrep -f "avd ${AVD_NAME:-pili-test}" | head -1)"
+    if online; then
+        BOOT=$(adb -s "$DEV" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+        echo "设备：在线，boot_completed=${BOOT:-?}"
+    else
+        echo "设备：进程在，但 adb 还没连上"
+    fi
+    NOW=$(date +%s)
+    if [ -f "$STAMP" ]; then
+        IDLE=$(( NOW - $(stat -f%m "$STAMP") ))
+    else
+        IDLE=0
+    fi
+    LIMIT=$(cat "$LIFE" 2>/dev/null || echo 3600)
+    echo "闲置：${IDLE}s"
+    echo "寿命：${LIMIT}s，还剩 $(( LIMIT - IDLE ))s"
+    [ -f "$LOG" ] && echo "日志：$(tail -1 "$LOG")"
+    ;;
+adb)
+    shift
+    exec "$ROOT/scripts/sim" "$@"
+    ;;
+*)
+    sed -n '2,18p' "$0" | sed 's/^# \{0,1\}/ /'
+    exit 1
+    ;;
+esac

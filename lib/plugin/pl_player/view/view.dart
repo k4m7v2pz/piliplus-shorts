@@ -143,6 +143,10 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
   Offset? _initialFocalPoint;
 
   bool _pauseDueToPauseUponEnteringBackgroundMode = false;
+  /// 进入后台的时刻。用于区分"短暂切出"与"切后台很久"：
+  /// 后台继续播放模式下，切后台过久回来 Android 的视频输出常已停摆
+  /// （画面定格在切出去那一刻、声音照常播），回到前台需要 seek 踢一脚。
+  DateTime? _backgroundedAt;
 
   StreamSubscription? _brightnessListener;
   void _onBrightnessChanged(double value) {
@@ -347,6 +351,29 @@ class _PLVideoPlayerState extends State<PLVideoPlayer>
         if (_pauseDueToPauseUponEnteringBackgroundMode) {
           _pauseDueToPauseUponEnteringBackgroundMode = false;
           plPlayerController.play();
+        }
+      }
+    } else if (Platform.isAndroid) {
+      // 后台继续播放：mpv 音频在后台照常推进，但视频输出（SurfaceTexture
+      // 渲染链路）切后台过久后可能停摆，回到前台画面定格在切出那一刻。
+      // 回前台时 seek 到当前位置强制 mpv 重新出帧；短暂切走（<5s）不处理，
+      // 避免对正常快速切换造成多余的一下 seek。
+      final isBackground = const <AppLifecycleState>[
+        .paused,
+        .hidden,
+        .detached,
+      ].contains(state);
+      if (isBackground) {
+        _backgroundedAt ??= DateTime.now();
+      } else if (state == .resumed) {
+        final at = _backgroundedAt;
+        _backgroundedAt = null;
+        final player = plPlayerController.videoPlayerController;
+        if (at != null &&
+            DateTime.now().difference(at).inSeconds >= 5 &&
+            player != null &&
+            player.state.playing) {
+          player.seek(player.state.position);
         }
       }
     }
